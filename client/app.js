@@ -332,7 +332,9 @@ function openChat(phone) {
   document.getElementById('chat-header-status').textContent = 'Checking…';
 
   // Check if online
+  setTimeout(() => {
   socket.emit('check-user', { phoneNumber: phone });
+}, 1500);
 
   // Render existing messages
   const msgs = document.getElementById('chat-messages');
