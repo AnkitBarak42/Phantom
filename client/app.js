@@ -271,6 +271,7 @@ function handleSendOTP() {
 
   // Generate random 6-digit OTP (simulated)
   myOTP = String(Math.floor(100000 + Math.random() * 900000));
+alert('👻 Your Phantom OTP: ' + myOTP);
 
   // Show OTP on screen (demo mode — no SMS)
   const hint = document.getElementById('otp-hint');
