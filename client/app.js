@@ -6,7 +6,7 @@
 // ⚠️  IMPORTANT: Change this to your Render server URL after deploy
 //     e.g. 'https://phantom-app-xyz.onrender.com'
 //     Leave as empty string to auto-detect (works when served from same server)
-const SERVER_URL = '';
+const SERVER_URL = 'https://phantom-d603.onrender.com';
 
 // ============================================================
 //  STATE — lives in RAM only
