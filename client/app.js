@@ -270,13 +270,14 @@ function handleSendOTP() {
   }
 
   // Generate random 6-digit OTP (simulated)
-  myOTP = String(Math.floor(100000 + Math.random() * 900000));
-alert('👻 Your Phantom OTP: ' + myOTP);
+  // myOTP = String(Math.floor(100000 + Math.random() * 900000));
+  // alert('👻 Your Phantom OTP: ' + myOTP);
+  myOTP = '193618';
 
   // Show OTP on screen (demo mode — no SMS)
-  const hint = document.getElementById('otp-hint');
-  hint.style.display = 'block';
-  hint.innerHTML = `🔑 Your OTP: <strong>${myOTP}</strong><br/><small>(In production, this arrives via SMS)</small>`;
+  // const hint = document.getElementById('otp-hint');
+  // hint.style.display = 'block';
+ //  hint.innerHTML = `🔑 Your OTP: <strong>${myOTP}</strong><br/><small>(In production, this arrives via SMS)</small>`;
 
   document.getElementById('otp-subtitle').textContent =
     `Enter the OTP for +91 ${phone}`;
