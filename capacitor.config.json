@@ -1,0 +1,24 @@
+{
+  "appId": "com.phantom.app",
+  "appName": "Phantom",
+  "webDir": "client",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://YOUR-APP-NAME.onrender.com",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#C62828",
+      "androidSplashResourceName": "splash",
+      "splashFullScreen": true,
+      "splashImmersive": true
+    }
+  }
+}
