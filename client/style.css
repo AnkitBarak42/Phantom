@@ -639,3 +639,164 @@ html, body {
   padding: 6px 0;
   position: relative;
 }
+
+/* ============================================
+   PHANTOM V2 — New Styles
+   ============================================ */
+
+/* LOGOUT BUTTON */
+.logout-btn {
+  background: rgba(255,255,255,0.18);
+  border: none;
+  color: var(--white);
+  font-size: 18px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.logout-btn:hover { background: rgba(255,255,255,0.3); }
+
+/* TABS BAR */
+.tabs-bar {
+  display: flex;
+  background: var(--white);
+  border-bottom: 2px solid var(--gray-border);
+  flex-shrink: 0;
+}
+.tab-btn {
+  flex: 1;
+  padding: 13px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Poppins', sans-serif;
+  color: var(--gray-text);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+.tab-btn.active {
+  color: var(--red-primary);
+  border-bottom-color: var(--red-primary);
+}
+
+/* TAB CONTENT */
+.tab-content {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+.tab-content.active {
+  display: flex;
+}
+
+/* PHANTOM CONTACTS HEADER */
+.phantom-contacts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--red-light);
+  border-bottom: 1px solid var(--red-mid);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--red-primary);
+  flex-shrink: 0;
+}
+.btn-refresh-contacts {
+  background: var(--red-primary);
+  color: var(--white);
+  border: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+}
+
+/* PHANTOM CONTACT ITEM */
+.phantom-contact-item {
+  align-items: center;
+}
+.btn-chat-contact {
+  background: var(--red-primary);
+  color: var(--white);
+  border: none;
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.btn-chat-contact:hover { background: var(--red-dark); }
+
+/* ONLINE / OFFLINE DOTS */
+.online-dot {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  background: var(--green-online);
+  border-radius: 50%;
+  border: 2px solid var(--white);
+}
+.offline-dot {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  background: #9E9E9E;
+  border-radius: 50%;
+  border: 2px solid var(--white);
+}
+
+/* LEGAL WARNING ON CALL SCREENS */
+.call-legal-warn {
+  background: rgba(0,0,0,0.45);
+  color: #FFD54F;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  padding: 8px 16px;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+.active-warn {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+}
+
+/* EARPIECE NOTICE */
+.earpiece-notice {
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+  margin-top: 8px;
+  letter-spacing: 0.3px;
+}
+
+/* SCREENSHOT PROTECTION — blur on non-APK */
+.screen-protect {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* NAME SCREEN input */
+#screen-name .input-group input {
+  font-size: 16px;
+  padding: 14px 10px;
+}
