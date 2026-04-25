@@ -9,7 +9,7 @@
 </head>
 <body>
 
-  <!-- ===================== SCREEN: LOGIN ===================== -->
+  <!-- ===================== LOGIN ===================== -->
   <div class="screen active" id="screen-login">
     <div class="auth-card">
       <div class="auth-logo">👻</div>
@@ -23,7 +23,7 @@
     </div>
   </div>
 
-  <!-- ===================== SCREEN: OTP ===================== -->
+  <!-- ===================== OTP ===================== -->
   <div class="screen" id="screen-otp">
     <div class="auth-card">
       <div class="auth-logo">🔐</div>
@@ -42,7 +42,7 @@
     </div>
   </div>
 
-  <!-- ===================== SCREEN: NAME SETUP ===================== -->
+  <!-- ===================== NAME SETUP ===================== -->
   <div class="screen" id="screen-name">
     <div class="auth-card">
       <div class="auth-logo">👤</div>
@@ -55,17 +55,16 @@
     </div>
   </div>
 
-  <!-- ===================== SCREEN: HOME ===================== -->
+  <!-- ===================== HOME ===================== -->
   <div class="screen" id="screen-home">
     <div class="app-header">
       <h2>👻 Phantom</h2>
       <div style="display:flex;align-items:center;gap:10px;">
-        <div class="header-avatar" id="my-avatar-initials" title="Your profile">?</div>
-        <button class="logout-btn" id="btn-logout" title="Logout">⏻</button>
+        <button class="action-btn" id="btn-group-call-home" title="Start Group Call" style="font-size:20px;">👥</button>
+        <div class="header-avatar" id="my-avatar-initials">?</div>
+        <button class="logout-btn" id="btn-logout">⏻</button>
       </div>
     </div>
-
-    <!-- TABS -->
     <div class="tabs-bar">
       <button class="tab-btn active" id="tab-chats" onclick="switchTab('chats')">💬 Chats</button>
       <button class="tab-btn" id="tab-contacts" onclick="switchTab('contacts')">👥 Contacts</button>
@@ -84,7 +83,7 @@
         <div class="no-chats" id="no-chats-placeholder">
           <div class="icon">📵</div>
           <p>No chats yet</p>
-          <small>Search a number above or use Contacts tab</small>
+          <small>Search a number or use Contacts tab</small>
         </div>
       </div>
     </div>
@@ -105,11 +104,11 @@
     </div>
   </div>
 
-  <!-- ===================== SCREEN: CHAT ===================== -->
+  <!-- ===================== CHAT ===================== -->
   <div class="screen" id="screen-chat">
     <div class="chat-header">
       <div class="back-btn" id="btn-back-home">‹</div>
-      <div class="contact-avatar" style="width:38px;height:38px;background:rgba(255,255,255,0.2);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;" id="chat-header-avatar">?</div>
+      <div class="contact-avatar" id="chat-header-avatar" style="width:38px;height:38px;background:rgba(255,255,255,0.2);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;">?</div>
       <div class="chat-header-info">
         <div class="chat-header-name" id="chat-header-name">Unknown</div>
         <div class="chat-header-status" id="chat-header-status">Checking…</div>
@@ -128,74 +127,121 @@
     </div>
   </div>
 
-  <!-- ===================== SCREEN: OUTGOING CALL ===================== -->
+  <!-- ===================== OUTGOING CALL ===================== -->
   <div class="screen" id="screen-calling">
     <div class="call-avatar-lg" id="calling-avatar">?</div>
     <div class="call-number" id="calling-number">Unknown</div>
     <div class="call-status">Calling…</div>
     <div class="call-type-label" id="calling-type-label">Audio Call</div>
     <div class="call-btn-row">
-      <button class="call-btn-circle btn-end-call" id="btn-cancel-call">
-        📵<small>Cancel</small>
-      </button>
+      <button class="call-btn-circle btn-end-call" id="btn-cancel-call">📵<small>Cancel</small></button>
     </div>
   </div>
 
-  <!-- ===================== SCREEN: INCOMING CALL ===================== -->
+  <!-- ===================== INCOMING CALL ===================== -->
   <div class="screen" id="screen-incoming">
-    <!-- Legal warning -->
     <div class="call-legal-warn">🔒 Recording this call is strictly prohibited</div>
     <div class="call-avatar-lg" id="incoming-avatar">?</div>
     <div class="call-number" id="incoming-number">Unknown</div>
     <div class="call-status" id="incoming-call-status">Incoming Call…</div>
     <div class="call-type-label" id="incoming-type-label">Audio Call</div>
     <div class="call-btn-row">
-      <button class="call-btn-circle btn-decline" id="btn-decline-call">
-        📵<small>Decline</small>
-      </button>
-      <button class="call-btn-circle btn-accept" id="btn-accept-call">
-        📞<small>Accept</small>
-      </button>
+      <button class="call-btn-circle btn-decline" id="btn-decline-call">📵<small>Decline</small></button>
+      <button class="call-btn-circle btn-accept" id="btn-accept-call">📞<small>Accept</small></button>
     </div>
   </div>
 
-  <!-- ===================== SCREEN: ACTIVE CALL ===================== -->
+  <!-- ===================== ACTIVE 1-to-1 CALL ===================== -->
   <div class="screen" id="screen-call-active">
-    <!-- Legal warning on active call -->
     <div class="call-legal-warn active-warn">🔒 Recording prohibited</div>
-
-    <!-- VIDEO UI -->
     <div class="video-container hidden" id="video-container">
       <video id="remote-video" autoplay playsinline></video>
       <video id="local-video" autoplay playsinline muted></video>
     </div>
-
-    <!-- AUDIO UI — earpiece only, no speaker -->
     <div class="audio-call-ui hidden" id="audio-call-ui">
       <div class="call-avatar-lg" id="active-call-avatar">?</div>
       <div class="call-number" id="active-call-number">Unknown</div>
       <div class="call-timer" id="call-timer">00:00</div>
       <div class="earpiece-notice">🎧 Earpiece only — Hold phone to ear</div>
     </div>
-
-    <!-- CALL CONTROLS — NO SPEAKER BUTTON for audio calls -->
     <div class="call-controls">
-      <button class="call-btn-circle btn-mute" id="btn-toggle-mute" title="Mute">
-        🎙️<small id="mute-label">Mute</small>
-      </button>
-      <button class="call-btn-circle btn-end-call" id="btn-end-call">
-        📵<small>End</small>
-      </button>
-      <button class="call-btn-circle btn-speaker hidden" id="btn-toggle-video" title="Toggle Video">
-        📷<small id="video-label">Cam</small>
-      </button>
+      <button class="call-btn-circle btn-mute" id="btn-toggle-mute">🎙️<small id="mute-label">Mute</small></button>
+      <button class="call-btn-circle btn-end-call" id="btn-end-call">📵<small>End</small></button>
+      <button class="call-btn-circle btn-speaker hidden" id="btn-toggle-video">📷<small id="video-label">Cam</small></button>
     </div>
   </div>
 
-  <!-- ===================== TOAST ===================== -->
-  <div class="toast" id="toast"></div>
+  <!-- ===================== GROUP CALL SETUP ===================== -->
+  <div class="screen" id="screen-group-setup">
+    <div class="app-header">
+      <div class="back-btn" id="btn-back-from-group-setup">‹</div>
+      <h2>👥 Group Call</h2>
+    </div>
+    <div class="group-setup-body">
+      <div class="group-setup-card">
+        <div class="auth-logo">👥</div>
+        <h3>Start a Group Call</h3>
+        <p>Create a room and share the code with others to join</p>
+        <div class="group-type-row">
+          <button class="group-type-btn active" id="gbtn-audio" onclick="selectGroupType('audio')">📞 Audio</button>
+          <button class="group-type-btn" id="gbtn-video" onclick="selectGroupType('video')">📹 Video</button>
+        </div>
+        <button class="btn-primary" id="btn-create-room">🚀 Create Room</button>
+      </div>
 
-  <!-- Audio -->
+      <div class="group-divider">— OR —</div>
+
+      <div class="group-setup-card">
+        <h3>Join Existing Room</h3>
+        <div class="input-group">
+          <input type="text" id="room-code-input" placeholder="Enter room code" maxlength="8" autocomplete="off" style="text-transform:uppercase;" />
+        </div>
+        <button class="btn-primary" id="btn-join-room">Join Room →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== ACTIVE GROUP CALL ===================== -->
+  <div class="screen" id="screen-group-call">
+    <div class="call-legal-warn active-warn">🔒 Recording prohibited</div>
+
+    <!-- Room info bar -->
+    <div class="group-call-header">
+      <div>
+        <div class="group-room-code" id="group-room-code-display">Room: ABCD</div>
+        <div class="group-timer" id="group-call-timer">00:00</div>
+      </div>
+      <div class="group-member-count" id="group-member-count">👥 1</div>
+    </div>
+
+    <!-- Video grid (for video calls) -->
+    <div class="group-video-grid hidden" id="group-video-grid">
+      <!-- Local tile -->
+      <div class="video-tile" id="local-tile">
+        <video id="group-local-video" autoplay playsinline muted></video>
+        <div class="tile-label" id="local-tile-label">You</div>
+      </div>
+      <!-- Remote tiles added dynamically -->
+    </div>
+
+    <!-- Audio call participants list -->
+    <div class="group-audio-ui hidden" id="group-audio-ui">
+      <div class="group-participants" id="group-participants-list"></div>
+      <div class="earpiece-notice" style="margin-top:16px;">🎧 Earpiece only</div>
+    </div>
+
+    <!-- Group call controls -->
+    <div class="call-controls group-controls">
+      <button class="call-btn-circle btn-mute" id="btn-group-mute">🎙️<small id="group-mute-label">Mute</small></button>
+      <button class="call-btn-circle btn-end-call" id="btn-group-end">📵<small>Leave</small></button>
+      <button class="call-btn-circle btn-speaker hidden" id="btn-group-video">📷<small id="group-video-label">Cam</small></button>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+  <!-- Remote audio for 1-to-1 calls (earpiece) -->
+  <audio id="remote-audio" autoplay playsinline></audio>
   <audio id="ringtone" loop>
     <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YWoGAACBhYqFjIqHhIKEiI+Vl5SNg3dwaGptcnl/h4qIhoSCg4mQlZiTiX5yaWJjaW95gYqLiYeDgYSMkZaYkoV6b2ZgYWdrdn+IjIqHhIKFjZKYmpSJfnJpYmFka3Z/iI2LiISDhY2SmJqTiH1xaGJhZGt2f4iNi4iEg4WNkpiakoZ8cGhiYWRrdoCI" type="audio/wav">
   </audio>
