@@ -43,6 +43,9 @@ const activeUsers   = new Map();
 const socketToPhone = new Map();
 // Group rooms: roomId -> Map<phoneNumber, { socketId, name }>
 const rooms         = new Map();
+// Pending messages for offline users (RAM only)
+// phoneNumber -> [{from, fromName, message, messageId, timestamp}]
+const pendingMessages = new Map();
 
 // ============================================================
 //  HELPERS
@@ -153,9 +156,12 @@ io.on('connection', (socket) => {
     try {
       const phoneNumber = typeof data?.phoneNumber === 'string' ? data.phoneNumber.trim() : null;
       if (!phoneNumber) return;
-      const user = registeredUsers[phoneNumber];
-      if (user) {
-        socket.emit('lookup-result', { found: true, phoneNumber, name: user.name });
+      // Check both persistent file AND active RAM (handles Render free tier reset)
+      const fromFile   = registeredUsers[phoneNumber];
+      const fromActive = activeUsers.get(phoneNumber);
+      const name       = fromFile?.name || fromActive?.name || null;
+      if (name) {
+        socket.emit('lookup-result', { found: true, phoneNumber, name });
       } else {
         socket.emit('lookup-result', { found: false, phoneNumber });
       }
@@ -182,15 +188,27 @@ io.on('connection', (socket) => {
       if (!to || !message || message.length > 2000) return;
       const fromPhone = socketToPhone.get(socket.id);
       if (!fromPhone) return;
-      const fromName  = registeredUsers[fromPhone]?.name || fromPhone;
+      const fromName  = registeredUsers[fromPhone]?.name || activeUsers.get(fromPhone)?.name || fromPhone;
+      const timestamp = Date.now();
       const target    = activeUsers.get(to);
+
       if (target) {
+        // User is online — deliver immediately
         io.to(target.socketId).emit('receive-message', {
-          from: fromPhone, fromName, message, messageId, timestamp: Date.now()
+          from: fromPhone, fromName, message, messageId, timestamp
         });
         socket.emit('message-delivered', { messageId });
       } else {
-        socket.emit('user-offline', { phoneNumber: to });
+        // User is offline — queue message in RAM
+        if (!pendingMessages.has(to)) pendingMessages.set(to, []);
+        const queue = pendingMessages.get(to);
+        // Max 200 pending messages per user to avoid memory issues
+        if (queue.length < 200) {
+          queue.push({ from: fromPhone, fromName, message, messageId, timestamp });
+        }
+        // Notify sender — message queued, will deliver when recipient comes online
+        socket.emit('message-queued', { messageId });
+        console.log('[QUEUED] Message from ' + fromPhone + ' to ' + to + ' (' + queue.length + ' pending)');
       }
     } catch(e) { console.error('send-message error:', e); }
   });
@@ -356,6 +374,28 @@ function connectUser(socket, phoneNumber, name) {
   }
   activeUsers.set(phoneNumber, { socketId: socket.id, name });
   socketToPhone.set(socket.id, phoneNumber);
+
+  // Deliver any pending offline messages
+  deliverPendingMessages(socket, phoneNumber);
+}
+
+function deliverPendingMessages(socket, phoneNumber) {
+  const queue = pendingMessages.get(phoneNumber);
+  if (!queue || queue.length === 0) return;
+  console.log('[DELIVER] Sending ' + queue.length + ' pending messages to ' + phoneNumber);
+  // Send all queued messages in order
+  queue.forEach(msg => {
+    socket.emit('receive-message', {
+      from:      msg.from,
+      fromName:  msg.fromName,
+      message:   msg.message,
+      messageId: msg.messageId,
+      timestamp: msg.timestamp,
+      wasOffline: true  // flag so client knows this is a delayed message
+    });
+  });
+  // Clear queue after delivery
+  pendingMessages.delete(phoneNumber);
 }
 
 function removeFromRoom(phoneNumber, roomId) {
