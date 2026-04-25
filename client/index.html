@@ -47,7 +47,7 @@
     <div class="auth-card">
       <div class="auth-logo">👤</div>
       <h1>Your Name</h1>
-      <p>Enter your name. This is what others will see instead of your number.</p>
+      <p>Enter your name. This is what others will see.</p>
       <div class="input-group">
         <input type="text" id="name-input" placeholder="Enter your name" maxlength="30" autocomplete="off" />
       </div>
@@ -60,11 +60,11 @@
     <div class="app-header">
       <h2>👻 Phantom</h2>
       <div style="display:flex;align-items:center;gap:10px;">
-        <button class="action-btn" id="btn-group-call-home" title="Start Group Call" style="font-size:20px;">👥</button>
         <div class="header-avatar" id="my-avatar-initials">?</div>
-        <button class="logout-btn" id="btn-logout">⏻</button>
+        <button class="logout-btn" id="btn-logout" title="Logout">⏻</button>
       </div>
     </div>
+
     <div class="tabs-bar">
       <button class="tab-btn active" id="tab-chats" onclick="switchTab('chats')">💬 Chats</button>
       <button class="tab-btn" id="tab-contacts" onclick="switchTab('contacts')">👥 Contacts</button>
@@ -72,18 +72,11 @@
 
     <!-- CHATS TAB -->
     <div class="tab-content active" id="tab-content-chats">
-      <div class="search-bar">
-        <div class="search-input-wrap">
-          <span class="search-icon">🔍</span>
-          <input type="tel" id="search-phone" placeholder="Enter number to start chat…" maxlength="10" inputmode="numeric" />
-          <button class="btn-start-chat" id="btn-open-chat">Open</button>
-        </div>
-      </div>
       <div class="contacts-list" id="contacts-list">
         <div class="no-chats" id="no-chats-placeholder">
-          <div class="icon">📵</div>
+          <div class="icon">💬</div>
           <p>No chats yet</p>
-          <small>Search a number or use Contacts tab</small>
+          <small>Add a contact to start chatting</small>
         </div>
       </div>
     </div>
@@ -91,14 +84,48 @@
     <!-- CONTACTS TAB -->
     <div class="tab-content" id="tab-content-contacts">
       <div class="phantom-contacts-header">
-        <span>👻 Phantom Users</span>
-        <button class="btn-refresh-contacts" id="btn-refresh-contacts">🔄 Refresh</button>
+        <span>My Contacts</span>
+        <button class="btn-refresh-contacts" id="btn-add-contact">+ Add Contact</button>
       </div>
-      <div class="contacts-list" id="phantom-contacts-list">
-        <div class="no-chats">
+      <div class="contacts-list" id="my-contacts-list">
+        <div class="no-chats" id="no-contacts-placeholder">
           <div class="icon">👥</div>
-          <p>No Phantom users found</p>
-          <small>Users appear here when they join Phantom</small>
+          <p>No contacts yet</p>
+          <small>Tap "+ Add Contact" to add someone</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- FAB: New chat / Group call -->
+    <div class="fab-container">
+      <button class="fab-btn" id="fab-group-call" title="Group Call">📞</button>
+      <button class="fab-btn fab-main" id="fab-new-chat" title="New Chat">✏️</button>
+    </div>
+  </div>
+
+  <!-- ===================== ADD CONTACT ===================== -->
+  <div class="screen" id="screen-add-contact">
+    <div class="app-header">
+      <div class="back-btn" id="btn-back-from-add">‹</div>
+      <h2>Add Contact</h2>
+    </div>
+    <div style="padding:24px 16px;">
+      <div class="auth-card" style="box-shadow:none;padding:0;">
+        <p style="font-size:13px;color:#757575;margin-bottom:16px;">Enter phone number to find a Phantom user</p>
+        <div class="input-group">
+          <span>+91</span>
+          <input type="tel" id="add-contact-phone" placeholder="Enter phone number" maxlength="10" inputmode="numeric" autocomplete="off" />
+        </div>
+        <button class="btn-primary" id="btn-lookup-contact">Find Contact</button>
+        <!-- Result shown here -->
+        <div class="contact-lookup-result hidden" id="contact-lookup-result">
+          <div class="lookup-avatar" id="lookup-avatar">?</div>
+          <div class="lookup-name" id="lookup-name">Name</div>
+          <div class="lookup-status" id="lookup-status">Found on Phantom ✅</div>
+          <button class="btn-primary" id="btn-confirm-add-contact" style="margin-top:16px;">Add Contact</button>
+        </div>
+        <div class="contact-not-found hidden" id="contact-not-found">
+          ❌ This number is not registered on Phantom
         </div>
       </div>
     </div>
@@ -130,8 +157,8 @@
   <!-- ===================== OUTGOING CALL ===================== -->
   <div class="screen" id="screen-calling">
     <div class="call-avatar-lg" id="calling-avatar">?</div>
-    <div class="call-number" id="calling-number">Unknown</div>
-    <div class="call-status">Calling…</div>
+    <div class="call-number" id="calling-name">Unknown</div>
+    <div class="call-status" id="calling-status">Calling…</div>
     <div class="call-type-label" id="calling-type-label">Audio Call</div>
     <div class="call-btn-row">
       <button class="call-btn-circle btn-end-call" id="btn-cancel-call">📵<small>Cancel</small></button>
@@ -142,7 +169,7 @@
   <div class="screen" id="screen-incoming">
     <div class="call-legal-warn">🔒 Recording this call is strictly prohibited</div>
     <div class="call-avatar-lg" id="incoming-avatar">?</div>
-    <div class="call-number" id="incoming-number">Unknown</div>
+    <div class="call-number" id="incoming-name">Unknown</div>
     <div class="call-status" id="incoming-call-status">Incoming Call…</div>
     <div class="call-type-label" id="incoming-type-label">Audio Call</div>
     <div class="call-btn-row">
@@ -160,92 +187,72 @@
     </div>
     <div class="audio-call-ui hidden" id="audio-call-ui">
       <div class="call-avatar-lg" id="active-call-avatar">?</div>
-      <div class="call-number" id="active-call-number">Unknown</div>
+      <div class="call-number" id="active-call-name">Unknown</div>
       <div class="call-timer" id="call-timer">00:00</div>
-      <div class="earpiece-notice">🎧 Earpiece only — Hold phone to ear</div>
+      <div class="earpiece-notice">🎧 Earpiece only</div>
     </div>
     <div class="call-controls">
       <button class="call-btn-circle btn-mute" id="btn-toggle-mute">🎙️<small id="mute-label">Mute</small></button>
       <button class="call-btn-circle btn-end-call" id="btn-end-call">📵<small>End</small></button>
       <button class="call-btn-circle btn-speaker hidden" id="btn-toggle-video">📷<small id="video-label">Cam</small></button>
     </div>
+    <!-- Add participant during call -->
+    <button class="btn-add-participant" id="btn-add-to-call">👥 Add</button>
   </div>
 
-  <!-- ===================== GROUP CALL SETUP ===================== -->
-  <div class="screen" id="screen-group-setup">
-    <div class="app-header">
-      <div class="back-btn" id="btn-back-from-group-setup">‹</div>
-      <h2>👥 Group Call</h2>
-    </div>
-    <div class="group-setup-body">
-      <div class="group-setup-card">
-        <div class="auth-logo">👥</div>
-        <h3>Start a Group Call</h3>
-        <p>Create a room and share the code with others to join</p>
-        <div class="group-type-row">
-          <button class="group-type-btn active" id="gbtn-audio" onclick="selectGroupType('audio')">📞 Audio</button>
-          <button class="group-type-btn" id="gbtn-video" onclick="selectGroupType('video')">📹 Video</button>
-        </div>
-        <button class="btn-primary" id="btn-create-room">🚀 Create Room</button>
-      </div>
-
-      <div class="group-divider">— OR —</div>
-
-      <div class="group-setup-card">
-        <h3>Join Existing Room</h3>
-        <div class="input-group">
-          <input type="text" id="room-code-input" placeholder="Enter room code" maxlength="8" autocomplete="off" style="text-transform:uppercase;" />
-        </div>
-        <button class="btn-primary" id="btn-join-room">Join Room →</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===================== ACTIVE GROUP CALL ===================== -->
+  <!-- ===================== GROUP CALL (WhatsApp style) ===================== -->
   <div class="screen" id="screen-group-call">
     <div class="call-legal-warn active-warn">🔒 Recording prohibited</div>
-
-    <!-- Room info bar -->
     <div class="group-call-header">
       <div>
-        <div class="group-room-code" id="group-room-code-display">Room: ABCD</div>
+        <div style="font-size:15px;font-weight:600;color:#fff;">👥 Group Call</div>
         <div class="group-timer" id="group-call-timer">00:00</div>
       </div>
       <div class="group-member-count" id="group-member-count">👥 1</div>
     </div>
 
-    <!-- Video grid (for video calls) -->
+    <!-- Video grid -->
     <div class="group-video-grid hidden" id="group-video-grid">
-      <!-- Local tile -->
       <div class="video-tile" id="local-tile">
         <video id="group-local-video" autoplay playsinline muted></video>
         <div class="tile-label" id="local-tile-label">You</div>
       </div>
-      <!-- Remote tiles added dynamically -->
     </div>
 
-    <!-- Audio call participants list -->
+    <!-- Audio participants -->
     <div class="group-audio-ui hidden" id="group-audio-ui">
       <div class="group-participants" id="group-participants-list"></div>
       <div class="earpiece-notice" style="margin-top:16px;">🎧 Earpiece only</div>
     </div>
 
-    <!-- Group call controls -->
     <div class="call-controls group-controls">
       <button class="call-btn-circle btn-mute" id="btn-group-mute">🎙️<small id="group-mute-label">Mute</small></button>
       <button class="call-btn-circle btn-end-call" id="btn-group-end">📵<small>Leave</small></button>
       <button class="call-btn-circle btn-speaker hidden" id="btn-group-video">📷<small id="group-video-label">Cam</small></button>
     </div>
+    <button class="btn-add-participant" id="btn-add-to-group">👥 Add</button>
+  </div>
+
+  <!-- ===================== SELECT CONTACTS MODAL ===================== -->
+  <div class="modal-overlay hidden" id="contact-select-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span id="modal-title">Select Contacts</span>
+        <button class="modal-close" id="btn-close-modal">✕</button>
+      </div>
+      <div class="modal-body" id="modal-contacts-list"></div>
+      <div class="modal-footer">
+        <button class="btn-primary" id="btn-modal-confirm">Call Selected</button>
+      </div>
+    </div>
   </div>
 
   <!-- TOAST -->
   <div class="toast" id="toast"></div>
-  <!-- Remote audio for 1-to-1 calls (earpiece) -->
   <audio id="remote-audio" autoplay playsinline></audio>
   <audio id="ringtone" loop>
     <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YWoGAACBhYqFjIqHhIKEiI+Vl5SNg3dwaGptcnl/h4qIhoSCg4mQlZiTiX5yaWJjaW95gYqLiYeDgYSMkZaYkoV6b2ZgYWdrdn+IjIqHhIKFjZKYmpSJfnJpYmFka3Z/iI2LiISDhY2SmJqTiH1xaGJhZGt2f4iNi4iEg4WNkpiakoZ8cGhiYWRrdoCI" type="audio/wav">
   </audio>
-
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script src="app.js"></script>
 </body>
