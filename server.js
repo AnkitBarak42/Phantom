@@ -7,25 +7,32 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
+  cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
 // =============================================
 // IN-MEMORY ONLY — No database, no file storage
 // All data lives in RAM. Server restart = wipe.
 // =============================================
-const users = new Map();       // phoneNumber -> socketId
-const socketToPhone = new Map(); // socketId -> phoneNumber
+// phoneNumber -> { socketId, name }
+const users = new Map();
+// socketId -> phoneNumber
+const socketToPhone = new Map();
 
 // Serve client files
 app.use(express.static(path.join(__dirname, 'client')));
-
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'client', 'index.html'));
 });
+
+// Broadcast updated user list to ALL connected clients
+function broadcastUserList() {
+  const userList = [];
+  users.forEach(({ socketId, name }, phoneNumber) => {
+    userList.push({ phoneNumber, name, isOnline: true });
+  });
+  io.emit('phantom-users', userList);
+}
 
 io.on('connection', (socket) => {
   console.log('[+] Connected:', socket.id);
@@ -34,20 +41,34 @@ io.on('connection', (socket) => {
   socket.on('register', (data) => {
     try {
       const phoneNumber = typeof data?.phoneNumber === 'string' ? data.phoneNumber.trim() : null;
+      const name        = typeof data?.name === 'string' ? data.name.trim() : phoneNumber;
       if (!phoneNumber || phoneNumber.length < 6 || phoneNumber.length > 15) {
         socket.emit('registered', { success: false, error: 'Invalid phone number' });
         return;
       }
-      // If phone already registered, remove old socket
+      // Remove old socket if phone already registered
       if (users.has(phoneNumber)) {
-        const oldSocketId = users.get(phoneNumber);
-        socketToPhone.delete(oldSocketId);
+        const old = users.get(phoneNumber);
+        socketToPhone.delete(old.socketId);
       }
-      users.set(phoneNumber, socket.id);
+      users.set(phoneNumber, { socketId: socket.id, name: name || phoneNumber });
       socketToPhone.set(socket.id, phoneNumber);
-      socket.emit('registered', { success: true, phoneNumber });
-      console.log(`[✓] Registered: ${phoneNumber}`);
+      socket.emit('registered', { success: true, phoneNumber, name });
+      console.log(`[✓] Registered: ${phoneNumber} as "${name}"`);
+      // Broadcast updated user list to everyone
+      broadcastUserList();
     } catch (e) { console.error('register error:', e); }
+  });
+
+  // ---- GET ALL PHANTOM USERS ----
+  socket.on('get-users', () => {
+    try {
+      const userList = [];
+      users.forEach(({ socketId, name }, phoneNumber) => {
+        userList.push({ phoneNumber, name, isOnline: true });
+      });
+      socket.emit('phantom-users', userList);
+    } catch (e) { console.error('get-users error:', e); }
   });
 
   // ---- CHECK USER ONLINE ----
@@ -56,7 +77,8 @@ io.on('connection', (socket) => {
       const phoneNumber = typeof data?.phoneNumber === 'string' ? data.phoneNumber.trim() : null;
       if (!phoneNumber) return;
       const isOnline = users.has(phoneNumber);
-      socket.emit('user-status', { phoneNumber, isOnline });
+      const name = isOnline ? users.get(phoneNumber).name : null;
+      socket.emit('user-status', { phoneNumber, isOnline, name });
     } catch (e) { console.error('check-user error:', e); }
   });
 
@@ -67,15 +89,14 @@ io.on('connection', (socket) => {
       const message   = typeof data?.message === 'string' ? data.message.trim() : null;
       const messageId = data?.messageId;
       if (!to || !message || message.length > 2000) return;
-
-      // FIX 6: Never trust client-supplied 'from' — derive from authenticated socket
-      const from = socketToPhone.get(socket.id);
-      if (!from) return;
-
-      const targetSocketId = users.get(to);
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('receive-message', {
-          from,
+      const fromPhone = socketToPhone.get(socket.id);
+      if (!fromPhone) return;
+      const fromName = users.get(fromPhone)?.name || fromPhone;
+      const targetUser = users.get(to);
+      if (targetUser) {
+        io.to(targetUser.socketId).emit('receive-message', {
+          from: fromPhone,
+          fromName,
           message,
           messageId,
           timestamp: Date.now()
@@ -89,78 +110,65 @@ io.on('connection', (socket) => {
 
   // ---- WEBRTC SIGNALING ----
 
-  // Caller sends offer
   socket.on('call-offer', (data) => {
     try {
       const to       = typeof data?.to === 'string' ? data.to.trim() : null;
       const offer    = data?.offer;
       const callType = data?.callType === 'video' ? 'video' : 'audio';
       if (!to || !offer) return;
-
-      // FIX 6: Derive caller identity from authenticated socket — not from client payload
-      const from = socketToPhone.get(socket.id);
-      if (!from) return;
-
-      const targetSocketId = users.get(to);
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('incoming-call', { from, offer, callType });
+      const fromPhone = socketToPhone.get(socket.id);
+      if (!fromPhone) return;
+      const fromName = users.get(fromPhone)?.name || fromPhone;
+      const targetUser = users.get(to);
+      if (targetUser) {
+        io.to(targetUser.socketId).emit('incoming-call', { from: fromPhone, fromName, offer, callType });
       } else {
         socket.emit('user-offline', { phoneNumber: to });
       }
     } catch (e) { console.error('call-offer error:', e); }
   });
 
-  // Callee sends answer
   socket.on('call-answer', (data) => {
     try {
       const to     = typeof data?.to === 'string' ? data.to.trim() : null;
       const answer = data?.answer;
       if (!to || !answer) return;
-
-      const from = socketToPhone.get(socket.id);
-      if (!from) return;
-
-      const targetSocketId = users.get(to);
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('call-answered', { answer, from });
+      const fromPhone = socketToPhone.get(socket.id);
+      if (!fromPhone) return;
+      const targetUser = users.get(to);
+      if (targetUser) {
+        io.to(targetUser.socketId).emit('call-answered', { answer, from: fromPhone });
       }
     } catch (e) { console.error('call-answer error:', e); }
   });
 
-  // ICE candidate exchange
   socket.on('ice-candidate', (data) => {
     try {
       const to        = typeof data?.to === 'string' ? data.to.trim() : null;
       const candidate = data?.candidate;
       if (!to || !candidate) return;
-      const targetSocketId = users.get(to);
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('ice-candidate', { candidate });
+      const targetUser = users.get(to);
+      if (targetUser) {
+        io.to(targetUser.socketId).emit('ice-candidate', { candidate });
       }
     } catch (e) { console.error('ice-candidate error:', e); }
   });
 
-  // Call declined
   socket.on('call-decline', (data) => {
     try {
       const to = typeof data?.to === 'string' ? data.to.trim() : null;
       if (!to) return;
-      const targetSocketId = users.get(to);
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('call-declined');
-      }
+      const targetUser = users.get(to);
+      if (targetUser) io.to(targetUser.socketId).emit('call-declined');
     } catch (e) { console.error('call-decline error:', e); }
   });
 
-  // Call ended
   socket.on('call-end', (data) => {
     try {
       const to = typeof data?.to === 'string' ? data.to.trim() : null;
       if (!to) return;
-      const targetSocketId = users.get(to);
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('call-ended');
-      }
+      const targetUser = users.get(to);
+      if (targetUser) io.to(targetUser.socketId).emit('call-ended');
     } catch (e) { console.error('call-end error:', e); }
   });
 
@@ -171,6 +179,7 @@ io.on('connection', (socket) => {
       users.delete(phoneNumber);
       socketToPhone.delete(socket.id);
       console.log(`[-] Disconnected: ${phoneNumber}`);
+      broadcastUserList();
     }
   });
 });
@@ -178,5 +187,4 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`🚀 Phantom Server running on port ${PORT}`);
-  console.log(`📱 Open: http://localhost:${PORT}`);
 });
