@@ -188,15 +188,32 @@ function setupSocketEvents() {
     }
   });
 
-  socket.on('receive-message', ({ from, fromName, message, timestamp }) => {
+  socket.on('receive-message', ({ from, fromName, message, timestamp, messageId, wasOffline }) => {
     const displayName = getNameForPhone(from) !== '?' ? getNameForPhone(from) : (fromName || '?');
-    storeMessage(from, { from, fromName: displayName, message, timestamp, mine: false });
+    storeMessage(from, { from, fromName: displayName, message, timestamp, mine: false, messageId, wasOffline });
     updateChatContact(from, displayName, message, timestamp);
-    if (currentChat === from) { renderMessage({ fromName: displayName, message, timestamp, mine: false }); scrollToBottom(); }
-    else { showToast(`💬 ${displayName}: ${message.substring(0,35)}`); renderChatList(); }
+    if (currentChat === from) {
+      renderMessage({ fromName: displayName, message, timestamp, mine: false, messageId, wasOffline });
+      scrollToBottom();
+    } else {
+      const prefix = wasOffline ? '📨 ' : '💬 ';
+      showToast(`${prefix}${displayName}: ${message.substring(0,35)}`);
+      renderChatList();
+    }
   });
 
   socket.on('message-delivered', () => {});
+
+  // Message queued for offline user — show pending indicator
+  socket.on('message-queued', ({ messageId }) => {
+    // Find message bubble and mark as pending
+    const el = document.querySelector(`[data-msgid="${messageId}"]`);
+    if (el) {
+      el.title = 'Pending — will deliver when user comes online';
+      el.style.opacity = '0.7';
+    }
+    showToast('📨 Message queued — will deliver when user comes online');
+  });
 
   socket.on('user-offline', ({ phoneNumber }) => {
     showToast(`❌ ${getNameForPhone(phoneNumber)} is not online`);
@@ -575,7 +592,7 @@ function handleSendMessage() {
   const messageId = Date.now() + '_' + Math.random();
   const timestamp = Date.now();
   socket.emit('send-message', { to: currentChat, from: myPhone, message: text, messageId });
-  const msgObj = { from: myPhone, fromName: myName, message: text, timestamp, mine: true };
+  const msgObj = { from: myPhone, fromName: myName, message: text, timestamp, mine: true, messageId };
   storeMessage(currentChat, msgObj);
   updateChatContact(currentChat, currentChatName, text, timestamp);
   renderMessage(msgObj);
@@ -591,15 +608,17 @@ function storeMessage(phone, msgObj) {
 function updateChatContact(phone, name, lastMsg, lastTime) {
   chatContacts.set(phone, { name: name||phone, lastMsg, lastTime });
 }
-function renderMessage({ fromName, message, timestamp, mine }) {
+function renderMessage({ fromName, message, timestamp, mine, messageId, wasOffline }) {
   const wrap   = document.createElement('div');
   wrap.className = `msg-bubble-wrap ${mine ? 'sent' : 'received'}`;
   const bubble = document.createElement('div');
   bubble.className = `msg-bubble ${mine ? 'sent' : 'received'}`;
+  if (messageId) bubble.dataset.msgid = messageId;
   bubble.textContent = message;
   const time = document.createElement('div');
   time.className = 'msg-time';
-  time.textContent = formatTime(timestamp);
+  // Show clock icon for offline-delivered messages
+  time.textContent = (wasOffline ? '🕐 ' : '') + formatTime(timestamp);
   wrap.appendChild(bubble);
   wrap.appendChild(time);
   document.getElementById('chat-messages').appendChild(wrap);
