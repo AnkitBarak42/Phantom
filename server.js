@@ -126,12 +126,26 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Different device — reject
-      socket.emit('registered', {
-        success: false,
-        error: 'This number is already registered on another device. Please logout from the other device first.'
-      });
-      console.log(`[REJECTED] ${phoneNumber} — device mismatch`);
+      // Different device — kick out old device, log in new device
+      // 1. Force logout old device if still connected
+      const oldActiveUser = activeUsers.get(phoneNumber);
+      if (oldActiveUser) {
+        io.to(oldActiveUser.socketId).emit('force-logged-out', {
+          reason: 'You have been logged in on another device.'
+        });
+        socketToPhone.delete(oldActiveUser.socketId);
+        activeUsers.delete(phoneNumber);
+      }
+
+      // 2. Generate new device token for new device
+      const newToken = generateDeviceToken();
+      registeredUsers[phoneNumber].deviceToken = newToken;
+      saveUsers(registeredUsers);
+
+      // 3. Connect new device
+      connectUser(socket, phoneNumber, existing.name);
+      socket.emit('registered', { success: true, phoneNumber, name: existing.name, deviceToken: newToken });
+      console.log(`[DEVICE SWITCH] ${phoneNumber} logged in on new device — old device kicked out`);
 
     } catch(e) { console.error('register error:', e); }
   });
