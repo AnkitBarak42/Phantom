@@ -108,7 +108,17 @@ window.addEventListener('DOMContentLoaded', () => {
     myPhone       = savedPhone;
     myName        = savedName;
     myDeviceToken = savedToken;
-    socket.on('connect', () => {
+    // Kicked out because another device logged in with same number
+  socket.on('force-logged-out', ({ reason }) => {
+    lsRemove(LS_PHONE); lsRemove(LS_NAME); lsRemove(LS_TOKEN);
+    myPhone = ''; myName = ''; myDeviceToken = '';
+    currentChat = ''; chatMessages.clear(); chatContacts.clear();
+    try { cleanupCall(); } catch(e) {}
+    showScreen('login');
+    setTimeout(() => showToast('⚠️ ' + reason), 500);
+  });
+
+  socket.on('connect', () => {
       socket.emit('register', { phoneNumber: myPhone, name: myName, deviceToken: myDeviceToken });
     });
     updateHomeUI();
