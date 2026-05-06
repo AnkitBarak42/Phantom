@@ -14,10 +14,9 @@
     <div class="auth-card">
       <div class="auth-logo">👻</div>
       <h1>Phantom</h1>
-      <p>Enter your phone number to get started.<br/>Your data is never stored.</p>
+      <p>Enter your email address to get started.<br/>Your data is never stored.</p>
       <div class="input-group">
-        <span>+91</span>
-        <input type="tel" id="phone-input" placeholder="Enter phone number" maxlength="10" inputmode="numeric" />
+        <input type="email" id="email-input" placeholder="Enter email address" inputmode="email" autocomplete="email" />
       </div>
       <button class="btn-primary" id="btn-send-otp">Send OTP</button>
     </div>
@@ -28,7 +27,7 @@
     <div class="auth-card">
       <div class="auth-logo">🔐</div>
       <h1>Verify OTP</h1>
-      <p id="otp-subtitle">Enter the 6-digit OTP.</p>
+      <p id="otp-subtitle">Enter the 6-digit OTP sent to your email.</p>
       <div class="otp-inputs">
         <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" />
         <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" />
@@ -37,7 +36,9 @@
         <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" />
         <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" />
       </div>
-      <button class="btn-primary" id="btn-verify-otp">Verify & Continue</button>
+      <div id="otp-timer" style="font-size:13px;color:#888;margin:8px 0 4px;text-align:center;min-height:18px;"></div>
+      <button class="btn-primary" id="btn-verify-otp">Verify &amp; Continue</button>
+      <button class="btn-secondary" id="btn-resend-otp" style="margin-top:8px;display:none;">Resend OTP</button>
       <div class="back-link" id="btn-back-login">← Change number</div>
     </div>
   </div>

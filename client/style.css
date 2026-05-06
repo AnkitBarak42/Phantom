@@ -149,6 +149,24 @@ html, body {
 }
 .btn-primary:hover { background: var(--red-dark); }
 .btn-primary:active { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-secondary {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  color: var(--red-primary);
+  border: 1.5px solid var(--red-primary);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  letter-spacing: 0.3px;
+}
+.btn-secondary:hover { background: var(--red-light); }
+.btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .otp-hint {
   margin-top: 16px;

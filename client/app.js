@@ -13,10 +13,10 @@ const SERVER_URL = 'https://phantom-d603.onrender.com';
 //  STATE
 // ============================================================
 let socket           = null;
-let myPhone          = '';
+let myEmail          = '';
 let myName           = '';
-let myOTP            = '';
 let myDeviceToken    = '';
+let otpCountdownInterval = null;
 let currentChat      = '';       // phone (internal only)
 let currentChatName  = '';       // display name
 let peerConnection   = null;
@@ -52,7 +52,7 @@ const chatMessages = new Map(); // phone -> [msg]
 const chatContacts = new Map(); // phone -> {name, lastMsg, lastTime}
 
 // localStorage keys
-const LS_PHONE   = 'phantom_phone';
+const LS_PHONE   = 'phantom_email';
 const LS_NAME    = 'phantom_name';
 const LS_TOKEN   = 'phantom_token';
 const LS_CONTACTS = 'phantom_my_contacts'; // [{phone, name}]
@@ -105,13 +105,13 @@ window.addEventListener('DOMContentLoaded', () => {
   const savedToken = lsGet(LS_TOKEN);
 
   if (savedPhone && savedName && savedToken) {
-    myPhone       = savedPhone;
+    myEmail       = savedPhone;
     myName        = savedName;
     myDeviceToken = savedToken;
     // Kicked out because another device logged in with same number
   socket.on('force-logged-out', ({ reason }) => {
     lsRemove(LS_PHONE); lsRemove(LS_NAME); lsRemove(LS_TOKEN);
-    myPhone = ''; myName = ''; myDeviceToken = '';
+    myEmail = ''; myName = ''; myDeviceToken = '';
     currentChat = ''; chatMessages.clear(); chatContacts.clear();
     try { cleanupCall(); } catch(e) {}
     showScreen('login');
@@ -119,7 +119,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   socket.on('connect', () => {
-      socket.emit('register', { phoneNumber: myPhone, name: myName, deviceToken: myDeviceToken });
+      socket.emit('register', { email: myEmail, name: myName, deviceToken: myDeviceToken });
     });
     updateHomeUI();
     showScreen('home');
@@ -154,35 +154,72 @@ function switchTab(tab) {
 function setupSocketEvents() {
 
   socket.on('connect', () => {
-    if (myPhone && myName && myDeviceToken) {
-      socket.emit('register', { phoneNumber: myPhone, name: myName, deviceToken: myDeviceToken });
+    if (myEmail && myName && myDeviceToken) {
+      socket.emit('register', { email: myEmail, name: myName, deviceToken: myDeviceToken });
     }
   });
 
-  socket.on('registered', ({ success, phoneNumber, name, deviceToken, error }) => {
+  // ---- OTP EVENTS ----
+  socket.on('otp-sent', ({ expiresIn }) => {
+    showScreen('otp');
+    startOTPCountdown(expiresIn);
+    setTimeout(() => document.querySelector('.otp-box').focus(), 200);
+  });
+
+  socket.on('otp-error', ({ error }) => {
+    showToast(`❌ ${error}`);
+    document.getElementById('btn-send-otp').disabled  = false;
+    document.getElementById('btn-resend-otp').disabled = false;
+  });
+
+  socket.on('otp-result', ({ success, error, attemptsLeft }) => {
+    if (!success) {
+      showToast(`❌ ${error}`);
+      if (attemptsLeft === 0 || error.includes('expired') || error.includes('new OTP')) {
+        clearOTPCountdown();
+        document.querySelectorAll('.otp-box').forEach(b => b.value = '');
+        document.getElementById('btn-resend-otp').style.display = 'inline-block';
+        document.getElementById('btn-verify-otp').disabled = true;
+      }
+      return;
+    }
+    clearOTPCountdown();
+    // OTP correct — proceed to name entry or register
+    const savedName  = lsGet(LS_NAME);
+    const savedToken = lsGet(LS_TOKEN);
+    if (savedName && savedToken) {
+      myName = savedName; myDeviceToken = savedToken;
+      socket.emit('register', { email: myEmail, name: myName, deviceToken: myDeviceToken });
+    } else {
+      showScreen('name');
+      setTimeout(() => document.getElementById('name-input').focus(), 200);
+    }
+  });
+
+  socket.on('registered', ({ success, email, name, deviceToken, error }) => {
     if (!success) {
       showToast(`❌ ${error}`);
       // If rejected due to device mismatch, stay on login
       if (getCurrentScreen() !== 'login') showScreen('login');
       return;
     }
-    myPhone       = phoneNumber;
+    myEmail       = email;
     myName        = name;
     myDeviceToken = deviceToken || myDeviceToken;
-    lsSet(LS_PHONE, myPhone);
+    lsSet(LS_PHONE, myEmail);
     lsSet(LS_NAME,  myName);
     if (deviceToken) lsSet(LS_TOKEN, deviceToken);
     updateHomeUI();
     if (getCurrentScreen() !== 'home') { showScreen('home'); showToast(`✅ Welcome, ${myName}!`); }
   });
 
-  socket.on('user-status', ({ phoneNumber, isOnline, name }) => {
-    if (phoneNumber === currentChat) {
+  socket.on('user-status', ({ email, isOnline, name }) => {
+    if (email === currentChat) {
       document.getElementById('chat-header-status').textContent = isOnline ? '🟢 Online' : '⭕ Offline';
     }
   });
 
-  socket.on('lookup-result', ({ found, phoneNumber, name }) => {
+  socket.on('lookup-result', ({ found, email, name }) => {
     const resultDiv  = document.getElementById('contact-lookup-result');
     const notFound   = document.getElementById('contact-not-found');
     if (found) {
@@ -190,7 +227,7 @@ function setupSocketEvents() {
       notFound.classList.add('hidden');
       document.getElementById('lookup-avatar').textContent = name.substring(0,2).toUpperCase();
       document.getElementById('lookup-name').textContent   = name;
-      resultDiv.dataset.phone = phoneNumber;
+      resultDiv.dataset.phone = email;
       resultDiv.dataset.name  = name;
     } else {
       resultDiv.classList.add('hidden');
@@ -225,8 +262,8 @@ function setupSocketEvents() {
     showToast('📨 Message queued — will deliver when user comes online');
   });
 
-  socket.on('user-offline', ({ phoneNumber }) => {
-    showToast(`❌ ${getNameForPhone(phoneNumber)} is not online`);
+  socket.on('user-offline', ({ email }) => {
+    showToast(`❌ ${getNameForPhone(email)} is not online`);
     if (getCurrentScreen() === 'calling') showScreen('chat');
   });
 
@@ -269,21 +306,21 @@ function setupSocketEvents() {
   // Group call events
   socket.on('group-existing-members', async ({ roomId, members, callType }) => {
     for (const m of members) {
-      if (m.phoneNumber !== myPhone) await createGroupPeer(m.phoneNumber, m.name, roomId, callType, true);
+      if (m.email !== myEmail) await createGroupPeer(m.email, m.name, roomId, callType, true);
     }
     updateGroupUI();
   });
 
-  socket.on('group-user-joined', async ({ roomId, phoneNumber, name, callType }) => {
-    if (phoneNumber === myPhone) return;
-    const displayName = getNameForPhone(phoneNumber) !== '?' ? getNameForPhone(phoneNumber) : name;
+  socket.on('group-user-joined', async ({ roomId, email, name, callType }) => {
+    if (email === myEmail) return;
+    const displayName = getNameForPhone(email) !== '?' ? getNameForPhone(email) : name;
     showToast(`👥 ${displayName} joined`);
-    if (!groupPeers.has(phoneNumber)) await createGroupPeer(phoneNumber, displayName, roomId, callType, false);
+    if (!groupPeers.has(email)) await createGroupPeer(email, displayName, roomId, callType, false);
     updateGroupUI();
   });
 
   socket.on('group-offer', async ({ from, fromName, roomId, offer }) => {
-    if (from === myPhone) return;
+    if (from === myEmail) return;
     const displayName = getNameForPhone(from) !== '?' ? getNameForPhone(from) : fromName;
     let pc = groupPeers.get(from);
     if (!pc) pc = await createGroupPeer(from, displayName, roomId, groupCallType, false);
@@ -316,10 +353,10 @@ function setupSocketEvents() {
     }
   });
 
-  socket.on('group-user-left', ({ phoneNumber }) => {
-    const name = getNameForPhone(phoneNumber);
+  socket.on('group-user-left', ({ email }) => {
+    const name = getNameForPhone(email);
     showToast(`👋 ${name} left`);
-    removeGroupPeer(phoneNumber);
+    removeGroupPeer(email);
     updateGroupUI();
   });
 }
@@ -331,11 +368,12 @@ function setupUIEvents() {
 
   // LOGIN
   document.getElementById('btn-send-otp').addEventListener('click', handleSendOTP);
-  document.getElementById('phone-input').addEventListener('keydown', e => { if (e.key === 'Enter') handleSendOTP(); });
+  document.getElementById('email-input').addEventListener('keydown', e => { if (e.key === 'Enter') handleSendOTP(); });
 
   // OTP
   document.getElementById('btn-verify-otp').addEventListener('click', handleVerifyOTP);
-  document.getElementById('btn-back-login').addEventListener('click', () => showScreen('login'));
+  document.getElementById('btn-resend-otp').addEventListener('click', handleResendOTP);
+  document.getElementById('btn-back-login').addEventListener('click', () => { clearOTPCountdown(); showScreen('login'); });
   const otpBoxes = document.querySelectorAll('.otp-box');
   otpBoxes.forEach((box, i) => {
     box.addEventListener('input', () => {
@@ -401,45 +439,77 @@ function setupUIEvents() {
 //  AUTH
 // ============================================================
 function handleSendOTP() {
-  const phone = document.getElementById('phone-input').value.trim();
-  if (phone.length < 10) { showToast('⚠️ Enter a valid 10-digit number'); return; }
-  myOTP   = '123456';
-  myPhone = phone;
-  document.getElementById('otp-subtitle').textContent = `Enter the OTP for +91 ${phone}`;
+  const email = document.getElementById('email-input').value.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('⚠️ Enter a valid email address'); return; }
+  myEmail = email;
+  document.getElementById('otp-subtitle').textContent = `OTP sent to ${email}`;
   document.querySelectorAll('.otp-box').forEach(b => b.value = '');
-  showScreen('otp');
-  setTimeout(() => document.querySelector('.otp-box').focus(), 200);
+  document.getElementById('btn-verify-otp').disabled  = false;
+  document.getElementById('btn-resend-otp').style.display = 'none';
+  document.getElementById('btn-send-otp').disabled = true;
+  socket.emit('request-otp', { email: email });
+}
+
+function handleResendOTP() {
+  if (!myEmail) return;
+  document.querySelectorAll('.otp-box').forEach(b => b.value = '');
+  document.getElementById('btn-resend-otp').disabled = true;
+  document.getElementById('btn-verify-otp').disabled  = false;
+  socket.emit('request-otp', { email: myEmail });
+}
+
+function startOTPCountdown(expiresIn) {
+  clearOTPCountdown();
+  const timerEl = document.getElementById('otp-timer');
+  let remaining = Math.floor(expiresIn / 1000);
+  const tick = () => {
+    if (remaining <= 0) {
+      clearOTPCountdown();
+      timerEl.textContent = 'OTP expired. Request a new one.';
+      timerEl.style.color = 'var(--red-primary, #C62828)';
+      document.getElementById('btn-verify-otp').disabled = true;
+      document.getElementById('btn-resend-otp').style.display = 'inline-block';
+      return;
+    }
+    const m = String(Math.floor(remaining / 60)).padStart(2, '0');
+    const s = String(remaining % 60).padStart(2, '0');
+    timerEl.textContent = `OTP expires in ${m}:${s}`;
+    timerEl.style.color = remaining <= 30 ? 'var(--red-primary, #C62828)' : '#888';
+    remaining--;
+  };
+  tick();
+  otpCountdownInterval = setInterval(tick, 1000);
+}
+
+function clearOTPCountdown() {
+  if (otpCountdownInterval) { clearInterval(otpCountdownInterval); otpCountdownInterval = null; }
+  const timerEl = document.getElementById('otp-timer');
+  if (timerEl) timerEl.textContent = '';
+  document.getElementById('btn-send-otp').disabled = false;
 }
 
 function handleVerifyOTP() {
   const entered = Array.from(document.querySelectorAll('.otp-box')).map(b => b.value).join('');
   if (entered.length < 6) { showToast('⚠️ Enter all 6 digits'); return; }
-  if (entered !== myOTP)   { showToast('❌ Wrong OTP. Try again.'); return; }
-  const savedName  = lsGet(LS_NAME);
-  const savedToken = lsGet(LS_TOKEN);
-  if (savedName && savedToken) {
-    myName = savedName; myDeviceToken = savedToken;
-    socket.emit('register', { phoneNumber: myPhone, name: myName, deviceToken: myDeviceToken });
-  } else {
-    showScreen('name');
-    setTimeout(() => document.getElementById('name-input').focus(), 200);
-  }
+  socket.emit('verify-otp', { email: myEmail, otp: entered });
 }
+
 
 function handleSaveName() {
   const name = document.getElementById('name-input').value.trim();
-  if (name.length < 1) { showToast('⚠️ Please enter your name'); return; }
+  if (name.length < 2) { showToast('⚠️ Name must be at least 2 characters'); return; }
+  if (name.length > 30) { showToast('⚠️ Name must be 30 characters or less'); return; }
+  if (!/^[a-zA-Z\s'\-.]+$/.test(name)) { showToast('⚠️ Name can only contain letters, spaces, hyphens'); return; }
   myName = name;
-  // No device token yet → server will generate one
-  socket.emit('register', { phoneNumber: myPhone, name: myName });
+  socket.emit('register', { email: myEmail, name: myName });
 }
 
 function handleLogout() {
   if (!confirm('Are you sure you want to logout?')) return;
   // Clear device token on server so new device can login
-  socket.emit('force-logout', { phoneNumber: myPhone, deviceToken: myDeviceToken });
+  socket.emit('force-logout', { email: myEmail, deviceToken: myDeviceToken });
   lsRemove(LS_PHONE); lsRemove(LS_NAME); lsRemove(LS_TOKEN);
-  myPhone = ''; myName = ''; myDeviceToken = '';
+  myEmail = ''; myName = ''; myDeviceToken = '';
   currentChat = ''; chatMessages.clear(); chatContacts.clear();
   showScreen('login'); showToast('👋 Logged out');
 }
@@ -456,10 +526,10 @@ function updateHomeUI() {
 function handleLookupContact() {
   const phone = document.getElementById('add-contact-phone').value.trim();
   if (phone.length < 10) { showToast('⚠️ Enter a valid 10-digit number'); return; }
-  if (phone === myPhone)  { showToast('⚠️ That is your own number'); return; }
+  if (phone === myEmail)  { showToast('⚠️ That is your own email'); return; }
   document.getElementById('contact-lookup-result').classList.add('hidden');
   document.getElementById('contact-not-found').classList.add('hidden');
-  socket.emit('lookup-user', { phoneNumber: phone });
+  socket.emit('lookup-user', { email: phone });
 }
 
 function handleConfirmAddContact() {
@@ -505,7 +575,7 @@ function renderMyContacts() {
 function openContactSelectModal(mode) {
   modalMode = mode;
   selectedContacts.clear();
-  const contacts = getMyContacts().filter(c => c.phone !== myPhone);
+  const contacts = getMyContacts().filter(c => c.phone !== myEmail);
   if (contacts.length === 0) { showToast('⚠️ No contacts yet. Add contacts first.'); return; }
 
   const titles = {
@@ -586,7 +656,7 @@ function openChat(phone, name) {
   document.getElementById('chat-header-avatar').textContent = initials;
   document.getElementById('chat-header-name').textContent   = currentChatName;
   document.getElementById('chat-header-status').textContent = 'Checking…';
-  setTimeout(() => socket.emit('check-user', { phoneNumber: phone }), 1500);
+  setTimeout(() => socket.emit('check-user', { email: phone }), 1500);
   const msgs = document.getElementById('chat-messages');
   while (msgs.children.length > 1) msgs.removeChild(msgs.lastChild);
   (chatMessages.get(phone) || []).forEach(m => renderMessage(m));
@@ -601,8 +671,8 @@ function handleSendMessage() {
   if (!text || !currentChat) return;
   const messageId = Date.now() + '_' + Math.random();
   const timestamp = Date.now();
-  socket.emit('send-message', { to: currentChat, from: myPhone, message: text, messageId });
-  const msgObj = { from: myPhone, fromName: myName, message: text, timestamp, mine: true, messageId };
+  socket.emit('send-message', { to: currentChat, from: myEmail, message: text, messageId });
+  const msgObj = { from: myEmail, fromName: myName, message: text, timestamp, mine: true, messageId };
   storeMessage(currentChat, msgObj);
   updateChatContact(currentChat, currentChatName, text, timestamp);
   renderMessage(msgObj);
@@ -677,7 +747,7 @@ async function startCall(type) {
     localStream.getTracks().forEach(t => peerConnection.addTrack(t, localStream));
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
-    socket.emit('call-offer', { to: currentChat, from: myPhone, offer, callType: type });
+    socket.emit('call-offer', { to: currentChat, from: myEmail, offer, callType: type });
   } catch(err) {
     showToast('❌ Could not access microphone/camera');
     cleanupCall(); showScreen('chat');
@@ -701,7 +771,7 @@ async function acceptCall() {
     iceCandidateQueue = [];
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
-    socket.emit('call-answer', { to: pendingCallFrom, from: myPhone, answer });
+    socket.emit('call-answer', { to: pendingCallFrom, from: myEmail, answer });
   } catch(err) {
     showToast('❌ Could not access microphone/camera');
     socket.emit('call-decline', { to: pendingCallFrom });
@@ -904,7 +974,7 @@ function showGroupCallUI() {
     document.getElementById('local-tile-label').textContent = myName;
   } else {
     videoGrid.classList.add('hidden'); audioUI.classList.remove('hidden'); videoBtn.classList.add('hidden');
-    renderGroupParticipant(myPhone, myName, true);
+    renderGroupParticipant(myEmail, myName, true);
   }
   showScreen('group-call');
   startGroupTimer();
