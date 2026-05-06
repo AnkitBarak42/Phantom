@@ -108,19 +108,6 @@ window.addEventListener('DOMContentLoaded', () => {
     myEmail       = savedPhone;
     myName        = savedName;
     myDeviceToken = savedToken;
-    // Kicked out because another device logged in with same number
-  socket.on('force-logged-out', ({ reason }) => {
-    lsRemove(LS_PHONE); lsRemove(LS_NAME); lsRemove(LS_TOKEN);
-    myEmail = ''; myName = ''; myDeviceToken = '';
-    currentChat = ''; chatMessages.clear(); chatContacts.clear();
-    try { cleanupCall(); } catch(e) {}
-    showScreen('login');
-    setTimeout(() => showToast('⚠️ ' + reason), 500);
-  });
-
-  socket.on('connect', () => {
-      socket.emit('register', { email: myEmail, name: myName, deviceToken: myDeviceToken });
-    });
     updateHomeUI();
     showScreen('home');
   } else {
@@ -157,6 +144,15 @@ function setupSocketEvents() {
     if (myEmail && myName && myDeviceToken) {
       socket.emit('register', { email: myEmail, name: myName, deviceToken: myDeviceToken });
     }
+  });
+
+  socket.on('force-logged-out', ({ reason }) => {
+    lsRemove(LS_PHONE); lsRemove(LS_NAME); lsRemove(LS_TOKEN);
+    myEmail = ''; myName = ''; myDeviceToken = '';
+    currentChat = ''; chatMessages.clear(); chatContacts.clear();
+    try { cleanupCall(); } catch(e) {}
+    showScreen('login');
+    setTimeout(() => showToast('⚠️ ' + reason), 500);
   });
 
   // ---- OTP EVENTS ----
