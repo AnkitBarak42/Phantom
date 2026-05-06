@@ -1,8 +1,40 @@
-const express = require('express');
-const http    = require('http');
-const { Server } = require('socket.io');
-const path    = require('path');
-const fs      = require('fs');
+require('dotenv').config();
+const express      = require('express');
+const http         = require('http');
+const { Server }   = require('socket.io');
+const path         = require('path');
+const fs           = require('fs');
+const crypto       = require('crypto');
+const nodemailer   = require('nodemailer');
+
+// ============================================================
+//  EMAIL TRANSPORTER (Gmail via App Password)
+// ============================================================
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS,
+  },
+});
+
+async function sendOTPEmail(toEmail, otp) {
+  await transporter.sendMail({
+    from: `"Phantom App" <${process.env.GMAIL_USER}>`,
+    to: toEmail,
+    subject: 'Your Phantom OTP Code',
+    html: `
+      <div style="font-family:sans-serif;max-width:400px;margin:auto;padding:32px;border:1px solid #eee;border-radius:12px;">
+        <h2 style="color:#C62828;">👻 Phantom</h2>
+        <p style="color:#333;">Your one-time password is:</p>
+        <div style="font-size:36px;font-weight:bold;letter-spacing:10px;color:#C62828;margin:24px 0;">${otp}</div>
+        <p style="color:#888;font-size:13px;">This OTP is valid for <strong>5 minutes</strong>. Do not share it with anyone.</p>
+        <hr style="border:none;border-top:1px solid #eee;margin:24px 0;"/>
+        <p style="color:#bbb;font-size:11px;">If you didn't request this, please ignore this email.</p>
+      </div>
+    `,
+  });
+}
 
 const app    = express();
 const server = http.createServer(app);
@@ -47,11 +79,35 @@ const rooms         = new Map();
 // phoneNumber -> [{from, fromName, message, messageId, timestamp}]
 const pendingMessages = new Map();
 
+// OTP store (RAM only, never persisted)
+// phoneNumber -> { otp, expiry, attempts, verified, resendCount, resendWindowStart }
+const otpStore = new Map();
+
+const OTP_EXPIRY_MS     = 5 * 60 * 1000;   // 5 minutes
+const OTP_MAX_ATTEMPTS  = 5;                // wrong guesses before lockout
+const OTP_MAX_RESENDS   = 3;                // resend requests per window
+const OTP_RESEND_WINDOW = 10 * 60 * 1000;  // 10-minute resend window
+
 // ============================================================
 //  HELPERS
 // ============================================================
 function generateDeviceToken() {
-  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+  return crypto.randomBytes(24).toString('hex');
+}
+
+function generateOTP() {
+  return String(crypto.randomInt(100000, 999999));
+}
+
+function isValidEmail(email) {
+  if (typeof email !== 'string') return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim().toLowerCase());
+}
+
+function isValidName(name) {
+  if (typeof name !== 'string') return false;
+  const n = name.trim();
+  return n.length >= 2 && n.length <= 30 && /^[a-zA-Z\s'\-.]+$/.test(n);
 }
 
 // ============================================================
@@ -63,13 +119,13 @@ app.get('*', (req, res) => {
 });
 
 // ============================================================
-//  REST API — lookup user by phone
+//  REST API — lookup user by email
 // ============================================================
-app.get('/api/user/:phone', (req, res) => {
+app.get('/api/user/:email', (req, res) => {
   try {
-    const phone = req.params.phone?.trim();
-    if (!phone) return res.json({ found: false });
-    const user = registeredUsers[phone];
+    const email = req.params.email?.trim().toLowerCase();
+    if (!email) return res.json({ found: false });
+    const user = registeredUsers[email];
     if (user) {
       res.json({ found: true, name: user.name });
     } else {
@@ -84,81 +140,167 @@ app.get('/api/user/:phone', (req, res) => {
 io.on('connection', (socket) => {
   console.log('[+] Connected:', socket.id);
 
-  // ---- REGISTER ----
+  // ---- REQUEST OTP ----
+  socket.on('request-otp', async (data) => {
+    try {
+      const email = typeof data?.email === 'string' ? data.email.trim().toLowerCase() : null;
+      if (!isValidEmail(email)) {
+        socket.emit('otp-error', { error: 'Enter a valid email address.' });
+        return;
+      }
+
+      const now    = Date.now();
+      const stored = otpStore.get(email) || { resendCount: 0, resendWindowStart: now };
+
+      if (now - stored.resendWindowStart > OTP_RESEND_WINDOW) {
+        stored.resendCount       = 0;
+        stored.resendWindowStart = now;
+      }
+
+      if (stored.resendCount >= OTP_MAX_RESENDS) {
+        const retryIn = Math.ceil((OTP_RESEND_WINDOW - (now - stored.resendWindowStart)) / 60000);
+        socket.emit('otp-error', { error: `Too many OTP requests. Try again in ${retryIn} minute(s).` });
+        return;
+      }
+
+      const otp = generateOTP();
+      otpStore.set(email, {
+        otp,
+        expiry:            now + OTP_EXPIRY_MS,
+        attempts:          0,
+        verified:          false,
+        resendCount:       stored.resendCount + 1,
+        resendWindowStart: stored.resendWindowStart,
+      });
+
+      await sendOTPEmail(email, otp);
+      console.log(`[OTP] Sent to ${email}`);
+      socket.emit('otp-sent', { expiresIn: OTP_EXPIRY_MS });
+    } catch(e) {
+      console.error('request-otp error:', e);
+      socket.emit('otp-error', { error: 'Failed to send OTP email. Please try again.' });
+    }
+  });
+
+    // ---- VERIFY OTP ----
+  socket.on('verify-otp', (data) => {
+    try {
+      const email   = typeof data?.email === 'string' ? data.email.trim().toLowerCase() : null;
+      const entered = typeof data?.otp === 'string' ? data.otp.trim() : null;
+
+      if (!isValidEmail(email) || !entered) {
+        socket.emit('otp-result', { success: false, error: 'Invalid request.' });
+        return;
+      }
+
+      const stored = otpStore.get(email);
+      if (!stored) {
+        socket.emit('otp-result', { success: false, error: 'No OTP found. Please request a new one.' });
+        return;
+      }
+
+      if (Date.now() > stored.expiry) {
+        otpStore.delete(email);
+        socket.emit('otp-result', { success: false, error: 'OTP expired. Please request a new one.' });
+        return;
+      }
+
+      if (stored.attempts >= OTP_MAX_ATTEMPTS) {
+        otpStore.delete(email);
+        socket.emit('otp-result', { success: false, error: 'Too many wrong attempts. Please request a new OTP.' });
+        return;
+      }
+
+      if (entered !== stored.otp) {
+        stored.attempts += 1;
+        const left = OTP_MAX_ATTEMPTS - stored.attempts;
+        socket.emit('otp-result', {
+          success: false,
+          error: left > 0 ? `Wrong OTP. ${left} attempt(s) remaining.` : 'Too many wrong attempts. Request a new OTP.',
+          attemptsLeft: left,
+        });
+        return;
+      }
+
+      stored.verified = true;
+      socket.emit('otp-result', { success: true });
+      console.log(`[OTP] ${email} verified`);
+    } catch(e) { console.error('verify-otp error:', e); }
+  });
+
+    // ---- REGISTER ----
   socket.on('register', (data) => {
     try {
-      const phoneNumber   = typeof data?.phoneNumber === 'string' ? data.phoneNumber.trim() : null;
-      const name          = typeof data?.name === 'string' ? data.name.trim() : null;
-      const deviceToken   = typeof data?.deviceToken === 'string' ? data.deviceToken.trim() : null;
+      const email       = typeof data?.email === 'string' ? data.email.trim().toLowerCase() : null;
+      const name        = typeof data?.name === 'string' ? data.name.trim() : null;
+      const deviceToken = typeof data?.deviceToken === 'string' ? data.deviceToken.trim() : null;
 
-      if (!phoneNumber || phoneNumber.length < 6 || phoneNumber.length > 15) {
-        socket.emit('registered', { success: false, error: 'Invalid phone number' });
+      if (!isValidEmail(email)) {
+        socket.emit('registered', { success: false, error: 'Invalid email address.' });
         return;
       }
 
-      const existing = registeredUsers[phoneNumber];
+      const existing = registeredUsers[email];
 
-      // First time registration
+      // First time registration — require OTP verification + valid name
       if (!existing) {
-        if (!name) {
-          socket.emit('registered', { success: false, error: 'Name required for first registration' });
+        const otpEntry = otpStore.get(email);
+        if (!otpEntry || !otpEntry.verified) {
+          socket.emit('registered', { success: false, error: 'OTP not verified. Please complete verification first.' });
           return;
         }
+        if (!isValidName(name)) {
+          socket.emit('registered', { success: false, error: 'Name must be 2–30 characters (letters, spaces, hyphens only).' });
+          return;
+        }
+        otpStore.delete(email);
         const newToken = generateDeviceToken();
-        registeredUsers[phoneNumber] = { name, deviceToken: newToken };
+        registeredUsers[email] = { name, deviceToken: newToken };
         saveUsers(registeredUsers);
-        connectUser(socket, phoneNumber, name);
-        socket.emit('registered', { success: true, phoneNumber, name, deviceToken: newToken });
-        console.log(`[NEW] Registered: ${phoneNumber} as "${name}"`);
+        connectUser(socket, email, name);
+        socket.emit('registered', { success: true, email, name, deviceToken: newToken });
+        console.log(`[NEW] Registered: ${email} as "${name}"`);
         return;
       }
 
-      // Existing user — verify device token
+      // Existing user — same device token → allow login
       if (deviceToken && existing.deviceToken === deviceToken) {
-        // Same device → allow login, update name if changed
-        if (name && name !== existing.name) {
-          registeredUsers[phoneNumber].name = name;
-          saveUsers(registeredUsers);
-        }
-        connectUser(socket, phoneNumber, existing.name);
-        socket.emit('registered', { success: true, phoneNumber, name: existing.name, deviceToken });
-        console.log(`[LOGIN] ${phoneNumber} as "${existing.name}"`);
+        connectUser(socket, email, existing.name);
+        socket.emit('registered', { success: true, email, name: existing.name, deviceToken });
+        console.log(`[LOGIN] ${email} as "${existing.name}"`);
         return;
       }
 
       // Different device — kick out old device, log in new device
-      // 1. Force logout old device if still connected
-      const oldActiveUser = activeUsers.get(phoneNumber);
+      const oldActiveUser = activeUsers.get(email);
       if (oldActiveUser) {
         io.to(oldActiveUser.socketId).emit('force-logged-out', {
           reason: 'You have been logged in on another device.'
         });
         socketToPhone.delete(oldActiveUser.socketId);
-        activeUsers.delete(phoneNumber);
+        activeUsers.delete(email);
       }
 
-      // 2. Generate new device token for new device
       const newToken = generateDeviceToken();
-      registeredUsers[phoneNumber].deviceToken = newToken;
+      registeredUsers[email].deviceToken = newToken;
       saveUsers(registeredUsers);
-
-      // 3. Connect new device
-      connectUser(socket, phoneNumber, existing.name);
-      socket.emit('registered', { success: true, phoneNumber, name: existing.name, deviceToken: newToken });
-      console.log(`[DEVICE SWITCH] ${phoneNumber} logged in on new device — old device kicked out`);
+      connectUser(socket, email, existing.name);
+      socket.emit('registered', { success: true, email, name: existing.name, deviceToken: newToken });
+      console.log(`[DEVICE SWITCH] ${email} logged in on new device`);
 
     } catch(e) { console.error('register error:', e); }
   });
 
+
   // ---- FORCE LOGOUT (clears device token so new device can login) ----
   socket.on('force-logout', (data) => {
     try {
-      const phoneNumber = typeof data?.phoneNumber === 'string' ? data.phoneNumber.trim() : null;
+      const email       = typeof data?.email === 'string' ? data.email.trim().toLowerCase() : null;
       const deviceToken = typeof data?.deviceToken === 'string' ? data.deviceToken.trim() : null;
-      if (!phoneNumber || !deviceToken) return;
-      const existing = registeredUsers[phoneNumber];
+      if (!email || !deviceToken) return;
+      const existing = registeredUsers[email];
       if (existing && existing.deviceToken === deviceToken) {
-        registeredUsers[phoneNumber].deviceToken = null;
+        registeredUsers[email].deviceToken = null;
         saveUsers(registeredUsers);
         socket.emit('force-logout-done');
       }
@@ -168,16 +310,15 @@ io.on('connection', (socket) => {
   // ---- LOOKUP USER ----
   socket.on('lookup-user', (data) => {
     try {
-      const phoneNumber = typeof data?.phoneNumber === 'string' ? data.phoneNumber.trim() : null;
-      if (!phoneNumber) return;
-      // Check both persistent file AND active RAM (handles Render free tier reset)
-      const fromFile   = registeredUsers[phoneNumber];
-      const fromActive = activeUsers.get(phoneNumber);
+      const email = typeof data?.email === 'string' ? data.email.trim().toLowerCase() : null;
+      if (!email) return;
+      const fromFile   = registeredUsers[email];
+      const fromActive = activeUsers.get(email);
       const name       = fromFile?.name || fromActive?.name || null;
       if (name) {
-        socket.emit('lookup-result', { found: true, phoneNumber, name });
+        socket.emit('lookup-result', { found: true, email, name });
       } else {
-        socket.emit('lookup-result', { found: false, phoneNumber });
+        socket.emit('lookup-result', { found: false, email });
       }
     } catch(e) { console.error('lookup-user error:', e); }
   });
@@ -185,11 +326,11 @@ io.on('connection', (socket) => {
   // ---- CHECK USER ONLINE ----
   socket.on('check-user', (data) => {
     try {
-      const phoneNumber = typeof data?.phoneNumber === 'string' ? data.phoneNumber.trim() : null;
-      if (!phoneNumber) return;
-      const isOnline = activeUsers.has(phoneNumber);
-      const name     = registeredUsers[phoneNumber]?.name || null;
-      socket.emit('user-status', { phoneNumber, isOnline, name });
+      const email    = typeof data?.email === 'string' ? data.email.trim().toLowerCase() : null;
+      if (!email) return;
+      const isOnline = activeUsers.has(email);
+      const name     = registeredUsers[email]?.name || null;
+      socket.emit('user-status', { email, isOnline, name });
     } catch(e) { console.error('check-user error:', e); }
   });
 
@@ -241,7 +382,7 @@ io.on('connection', (socket) => {
       if (target) {
         io.to(target.socketId).emit('incoming-call', { from: fromPhone, fromName, offer, callType });
       } else {
-        socket.emit('user-offline', { phoneNumber: to });
+        socket.emit('user-offline', { email: to });
       }
     } catch(e) { console.error('call-offer error:', e); }
   });
@@ -302,13 +443,13 @@ io.on('connection', (socket) => {
       // Tell joiner who is already there
       const members = [];
       room.forEach(({ socketId, name }, phone) => {
-        members.push({ phoneNumber: phone, name });
+        members.push({ email: phone, name });
       });
       socket.emit('group-existing-members', { roomId, members, callType });
 
       // Tell existing members about new joiner
       room.forEach(({ socketId }) => {
-        io.to(socketId).emit('group-user-joined', { roomId, phoneNumber: fromPhone, name: fromName, callType });
+        io.to(socketId).emit('group-user-joined', { roomId, email: fromPhone, name: fromName, callType });
       });
 
       room.set(fromPhone, { socketId: socket.id, name: fromName });
@@ -417,7 +558,7 @@ function removeFromRoom(phoneNumber, roomId) {
   if (!room) return;
   room.delete(phoneNumber);
   room.forEach(({ socketId }) => {
-    io.to(socketId).emit('group-user-left', { phoneNumber, roomId });
+    io.to(socketId).emit('group-user-left', { email: phoneNumber, roomId });
   });
   if (room.size === 0) rooms.delete(roomId);
 }
