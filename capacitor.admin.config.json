@@ -1,0 +1,13 @@
+{
+  "appId": "com.phantom.admin",
+  "appName": "Phantom Admin",
+  "webDir": "admin",
+  "server": {
+    "url": "https://YOUR-RENDER-URL.onrender.com/admin",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#C62828"
+  }
+}

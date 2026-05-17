@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Phantom Admin</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+  <!-- ── ADMIN LOGIN ── -->
+  <div id="screen-login" class="screen active">
+    <div class="login-wrap">
+      <div class="logo">👑</div>
+      <h1>Phantom Admin</h1>
+      <p>Owner access only</p>
+      <div class="form">
+        <input type="text"     id="inp-username" placeholder="Username" autocomplete="off"/>
+        <input type="password" id="inp-password" placeholder="Password"/>
+        <div id="login-error" class="error-msg"></div>
+        <button id="btn-login" class="btn-primary">Login</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ADMIN DASHBOARD ── -->
+  <div id="screen-dashboard" class="screen">
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <span>👑</span>
+        <span class="app-name">Admin Panel</span>
+      </div>
+      <div class="top-bar-right">
+        <span id="pending-badge" class="badge">0</span>
+        <button id="btn-logout" class="icon-btn">⎋</button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-tab="pending">Pending Requests</button>
+      <button class="tab"        data-tab="approved">Approved Users</button>
+    </div>
+
+    <!-- Pending Tab -->
+    <div id="tab-pending" class="tab-content active">
+      <div id="pending-list" class="list">
+        <div class="empty-state">No pending requests.</div>
+      </div>
+    </div>
+
+    <!-- Approved Tab -->
+    <div id="tab-approved" class="tab-content">
+      <div id="approved-list" class="list">
+        <div class="empty-state">No approved users yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── REJECT REASON MODAL ── -->
+  <div id="reject-modal" class="overlay" style="display:none">
+    <div class="modal-card">
+      <h3>Reject Request</h3>
+      <input type="text" id="inp-reject-reason" placeholder="Reason (optional)" maxlength="100"/>
+      <div class="modal-btns">
+        <button id="btn-confirm-reject" class="btn-danger">Reject</button>
+        <button id="btn-cancel-reject"  class="btn-outline">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TOAST ── -->
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "appId": "com.phantom.user",
+  "appName": "Phantom",
+  "webDir": "client",
+  "server": {
+    "url": "https://YOUR-RENDER-URL.onrender.com",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#C62828"
+  }
+}

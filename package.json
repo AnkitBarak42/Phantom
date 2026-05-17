@@ -1,7 +1,7 @@
 {
   "name": "phantom-app",
-  "version": "1.0.0",
-  "description": "Phantom — Private calling app with text, audio, and video. RAM-only, zero storage.",
+  "version": "2.0.0",
+  "description": "Phantom — Private messaging app with admin-approved login.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -10,7 +10,6 @@
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "^4.7.2",
-    "nodemailer": "^6.9.13",
     "dotenv": "^16.4.5"
   },
   "devDependencies": {

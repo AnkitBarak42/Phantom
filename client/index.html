@@ -1,260 +1,169 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#C62828" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
   <title>Phantom</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
 
-  <!-- ===================== LOGIN ===================== -->
-  <div class="screen active" id="screen-login">
-    <div class="auth-card">
-      <div class="auth-logo">👻</div>
+  <!-- ── LOGIN SCREEN ── -->
+  <div id="screen-login" class="screen active">
+    <div class="login-header">
+      <div class="logo">👻</div>
       <h1>Phantom</h1>
-      <p>Enter your email address to get started.<br/>Your data is never stored.</p>
+      <p>Private. Secure. Real-time.</p>
+    </div>
+    <div class="login-form">
       <div class="input-group">
-        <input type="email" id="email-input" placeholder="Enter email address" inputmode="email" autocomplete="email" />
+        <label>Full Name</label>
+        <input type="text" id="inp-name" placeholder="Enter your full name" maxlength="30"/>
       </div>
-      <button class="btn-primary" id="btn-send-otp">Send OTP</button>
-    </div>
-  </div>
-
-  <!-- ===================== OTP ===================== -->
-  <div class="screen" id="screen-otp">
-    <div class="auth-card">
-      <div class="auth-logo">🔐</div>
-      <h1>Verify OTP</h1>
-      <p id="otp-subtitle">Enter the 6-digit OTP sent to your email.</p>
-      <div class="otp-inputs">
-        <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" />
-        <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" />
-        <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" />
-        <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" />
-        <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" />
-        <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" />
-      </div>
-      <div id="otp-timer" style="font-size:13px;color:#888;margin:8px 0 4px;text-align:center;min-height:18px;"></div>
-      <button class="btn-primary" id="btn-verify-otp">Verify &amp; Continue</button>
-      <button class="btn-secondary" id="btn-resend-otp" style="margin-top:8px;display:none;">Resend OTP</button>
-      <div class="back-link" id="btn-back-login">← Change number</div>
-    </div>
-  </div>
-
-  <!-- ===================== NAME SETUP ===================== -->
-  <div class="screen" id="screen-name">
-    <div class="auth-card">
-      <div class="auth-logo">👤</div>
-      <h1>Your Name</h1>
-      <p>Enter your name. This is what others will see.</p>
       <div class="input-group">
-        <input type="text" id="name-input" placeholder="Enter your name" maxlength="30" autocomplete="off" />
+        <label>Mobile Number</label>
+        <input type="tel" id="inp-mobile" placeholder="10-digit mobile number" maxlength="15"/>
       </div>
-      <button class="btn-primary" id="btn-save-name">Continue →</button>
+      <div class="input-group">
+        <label>Gender</label>
+        <select id="inp-gender">
+          <option value="">Select gender</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Age</label>
+        <input type="number" id="inp-age" placeholder="Your age" min="5" max="120"/>
+      </div>
+      <div class="input-group">
+        <label>Address (City)</label>
+        <input type="text" id="inp-address" placeholder="Your city or address" maxlength="100"/>
+      </div>
+      <div id="login-error" class="error-msg"></div>
+      <button id="btn-request" class="btn-primary">Request Login</button>
     </div>
   </div>
 
-  <!-- ===================== HOME ===================== -->
-  <div class="screen" id="screen-home">
-    <div class="app-header">
-      <h2>👻 Phantom</h2>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div class="header-avatar" id="my-avatar-initials">?</div>
-        <button class="logout-btn" id="btn-logout" title="Logout">⏻</button>
-      </div>
-    </div>
-
-    <div class="tabs-bar">
-      <button class="tab-btn active" id="tab-chats" onclick="switchTab('chats')">💬 Chats</button>
-      <button class="tab-btn" id="tab-contacts" onclick="switchTab('contacts')">👥 Contacts</button>
-    </div>
-
-    <!-- CHATS TAB -->
-    <div class="tab-content active" id="tab-content-chats">
-      <div class="contacts-list" id="contacts-list">
-        <div class="no-chats" id="no-chats-placeholder">
-          <div class="icon">💬</div>
-          <p>No chats yet</p>
-          <small>Add a contact to start chatting</small>
-        </div>
-      </div>
-    </div>
-
-    <!-- CONTACTS TAB -->
-    <div class="tab-content" id="tab-content-contacts">
-      <div class="phantom-contacts-header">
-        <span>My Contacts</span>
-        <button class="btn-refresh-contacts" id="btn-add-contact">+ Add Contact</button>
-      </div>
-      <div class="contacts-list" id="my-contacts-list">
-        <div class="no-chats" id="no-contacts-placeholder">
-          <div class="icon">👥</div>
-          <p>No contacts yet</p>
-          <small>Tap "+ Add Contact" to add someone</small>
-        </div>
-      </div>
-    </div>
-
-    <!-- FAB: New chat / Group call -->
-    <div class="fab-container">
-      <button class="fab-btn" id="fab-group-call" title="Group Call">📞</button>
-      <button class="fab-btn fab-main" id="fab-new-chat" title="New Chat">✏️</button>
+  <!-- ── WAITING SCREEN ── -->
+  <div id="screen-waiting" class="screen">
+    <div class="waiting-wrap">
+      <div class="ghost-anim">👻</div>
+      <h2>Request Sent!</h2>
+      <p>Waiting for the owner to approve your request...</p>
+      <div class="spinner"></div>
+      <p class="waiting-sub">You'll be automatically logged in once approved.</p>
+      <button id="btn-cancel-request" class="btn-outline">Cancel Request</button>
     </div>
   </div>
 
-  <!-- ===================== ADD CONTACT ===================== -->
-  <div class="screen" id="screen-add-contact">
-    <div class="app-header">
-      <div class="back-btn" id="btn-back-from-add">‹</div>
-      <h2>Add Contact</h2>
-    </div>
-    <div style="padding:24px 16px;">
-      <div class="auth-card" style="box-shadow:none;padding:0;">
-        <p style="font-size:13px;color:#757575;margin-bottom:16px;">Enter phone number to find a Phantom user</p>
-        <div class="input-group">
-          <span>+91</span>
-          <input type="tel" id="add-contact-phone" placeholder="Enter phone number" maxlength="10" inputmode="numeric" autocomplete="off" />
-        </div>
-        <button class="btn-primary" id="btn-lookup-contact">Find Contact</button>
-        <!-- Result shown here -->
-        <div class="contact-lookup-result hidden" id="contact-lookup-result">
-          <div class="lookup-avatar" id="lookup-avatar">?</div>
-          <div class="lookup-name" id="lookup-name">Name</div>
-          <div class="lookup-status" id="lookup-status">Found on Phantom ✅</div>
-          <button class="btn-primary" id="btn-confirm-add-contact" style="margin-top:16px;">Add Contact</button>
-        </div>
-        <div class="contact-not-found hidden" id="contact-not-found">
-          ❌ This number is not registered on Phantom
-        </div>
-      </div>
+  <!-- ── REJECTED SCREEN ── -->
+  <div id="screen-rejected" class="screen">
+    <div class="waiting-wrap">
+      <div class="ghost-anim">😔</div>
+      <h2>Request Rejected</h2>
+      <p id="reject-reason" class="reject-reason">Your request was not approved.</p>
+      <button id="btn-try-again" class="btn-primary">Try Again</button>
     </div>
   </div>
 
-  <!-- ===================== CHAT ===================== -->
-  <div class="screen" id="screen-chat">
-    <div class="chat-header">
-      <div class="back-btn" id="btn-back-home">‹</div>
-      <div class="contact-avatar" id="chat-header-avatar" style="width:38px;height:38px;background:rgba(255,255,255,0.2);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;">?</div>
-      <div class="chat-header-info">
-        <div class="chat-header-name" id="chat-header-name">Unknown</div>
-        <div class="chat-header-status" id="chat-header-status">Checking…</div>
+  <!-- ── MAIN SCREEN ── -->
+  <div id="screen-main" class="screen">
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <span class="app-logo">👻</span>
+        <span class="app-name">Phantom</span>
+      </div>
+      <div class="top-bar-right">
+        <button id="btn-add-contact" class="icon-btn" title="Add Contact">＋</button>
+        <button id="btn-logout" class="icon-btn" title="Logout">⎋</button>
+      </div>
+    </div>
+    <div class="my-id-bar">
+      <span>Your ID: </span><strong id="display-my-id">—</strong>
+      <button id="btn-copy-id" class="copy-btn" title="Copy ID">⧉</button>
+    </div>
+    <div id="contacts-list" class="contacts-list">
+      <div class="empty-state">No contacts yet.<br/>Add a contact using their Phantom ID.</div>
+    </div>
+  </div>
+
+  <!-- ── CHAT SCREEN ── -->
+  <div id="screen-chat" class="screen">
+    <div class="chat-top-bar">
+      <button id="btn-back-chat" class="icon-btn">‹</button>
+      <div class="chat-contact-info">
+        <div class="chat-avatar" id="chat-avatar">?</div>
+        <div>
+          <div id="chat-contact-name">—</div>
+          <div id="chat-contact-status" class="status-text">—</div>
+        </div>
       </div>
       <div class="chat-actions">
-        <button class="action-btn" id="btn-audio-call" title="Audio Call">📞</button>
-        <button class="action-btn" id="btn-video-call" title="Video Call">📹</button>
+        <button id="btn-audio-call" class="icon-btn" title="Audio Call">📞</button>
+        <button id="btn-video-call" class="icon-btn" title="Video Call">📹</button>
       </div>
     </div>
-    <div class="chat-messages" id="chat-messages">
-      <div class="divider">Messages are not saved. Refresh = cleared.</div>
-    </div>
-    <div class="chat-input-bar">
-      <textarea id="message-input" placeholder="Type a message…" rows="1"></textarea>
-      <button class="send-btn" id="btn-send-msg">➤</button>
+    <div id="messages-container" class="messages-container"></div>
+    <div class="message-input-bar">
+      <input type="text" id="message-input" placeholder="Type a message..." maxlength="2000"/>
+      <button id="btn-send-msg" class="send-btn">➤</button>
     </div>
   </div>
 
-  <!-- ===================== OUTGOING CALL ===================== -->
-  <div class="screen" id="screen-calling">
-    <div class="call-avatar-lg" id="calling-avatar">?</div>
-    <div class="call-number" id="calling-name">Unknown</div>
-    <div class="call-status" id="calling-status">Calling…</div>
-    <div class="call-type-label" id="calling-type-label">Audio Call</div>
-    <div class="call-btn-row">
-      <button class="call-btn-circle btn-end-call" id="btn-cancel-call">📵<small>Cancel</small></button>
-    </div>
-  </div>
-
-  <!-- ===================== INCOMING CALL ===================== -->
-  <div class="screen" id="screen-incoming">
-    <div class="call-legal-warn">🔒 Recording this call is strictly prohibited</div>
-    <div class="call-avatar-lg" id="incoming-avatar">?</div>
-    <div class="call-number" id="incoming-name">Unknown</div>
-    <div class="call-status" id="incoming-call-status">Incoming Call…</div>
-    <div class="call-type-label" id="incoming-type-label">Audio Call</div>
-    <div class="call-btn-row">
-      <button class="call-btn-circle btn-decline" id="btn-decline-call">📵<small>Decline</small></button>
-      <button class="call-btn-circle btn-accept" id="btn-accept-call">📞<small>Accept</small></button>
-    </div>
-  </div>
-
-  <!-- ===================== ACTIVE 1-to-1 CALL ===================== -->
-  <div class="screen" id="screen-call-active">
-    <div class="call-legal-warn active-warn">🔒 Recording prohibited</div>
-    <div class="video-container hidden" id="video-container">
-      <video id="remote-video" autoplay playsinline></video>
-      <video id="local-video" autoplay playsinline muted></video>
-    </div>
-    <div class="audio-call-ui hidden" id="audio-call-ui">
-      <div class="call-avatar-lg" id="active-call-avatar">?</div>
-      <div class="call-number" id="active-call-name">Unknown</div>
-      <div class="call-timer" id="call-timer">00:00</div>
-      <div class="earpiece-notice">🎧 Earpiece only</div>
-    </div>
-    <div class="call-controls">
-      <button class="call-btn-circle btn-mute" id="btn-toggle-mute">🎙️<small id="mute-label">Mute</small></button>
-      <button class="call-btn-circle btn-end-call" id="btn-end-call">📵<small>End</small></button>
-      <button class="call-btn-circle btn-speaker hidden" id="btn-toggle-video">📷<small id="video-label">Cam</small></button>
-    </div>
-    <!-- Add participant during call -->
-    <button class="btn-add-participant" id="btn-add-to-call">👥 Add</button>
-  </div>
-
-  <!-- ===================== GROUP CALL (WhatsApp style) ===================== -->
-  <div class="screen" id="screen-group-call">
-    <div class="call-legal-warn active-warn">🔒 Recording prohibited</div>
-    <div class="group-call-header">
-      <div>
-        <div style="font-size:15px;font-weight:600;color:#fff;">👥 Group Call</div>
-        <div class="group-timer" id="group-call-timer">00:00</div>
+  <!-- ── CALL SCREEN ── -->
+  <div id="screen-call" class="screen">
+    <div class="call-wrap">
+      <div class="call-avatar" id="call-avatar">?</div>
+      <div id="call-contact-name" class="call-name">—</div>
+      <div id="call-status" class="call-status">Calling...</div>
+      <div id="video-container" class="video-container" style="display:none">
+        <video id="remote-video" autoplay playsinline></video>
+        <video id="local-video"  autoplay playsinline muted></video>
       </div>
-      <div class="group-member-count" id="group-member-count">👥 1</div>
-    </div>
-
-    <!-- Video grid -->
-    <div class="group-video-grid hidden" id="group-video-grid">
-      <div class="video-tile" id="local-tile">
-        <video id="group-local-video" autoplay playsinline muted></video>
-        <div class="tile-label" id="local-tile-label">You</div>
+      <div class="call-controls">
+        <button id="btn-mute"       class="call-btn">🎙️</button>
+        <button id="btn-end-call"   class="call-btn end-call-btn">📵</button>
+        <button id="btn-cam-toggle" class="call-btn" style="display:none">📷</button>
       </div>
     </div>
-
-    <!-- Audio participants -->
-    <div class="group-audio-ui hidden" id="group-audio-ui">
-      <div class="group-participants" id="group-participants-list"></div>
-      <div class="earpiece-notice" style="margin-top:16px;">🎧 Earpiece only</div>
-    </div>
-
-    <div class="call-controls group-controls">
-      <button class="call-btn-circle btn-mute" id="btn-group-mute">🎙️<small id="group-mute-label">Mute</small></button>
-      <button class="call-btn-circle btn-end-call" id="btn-group-end">📵<small>Leave</small></button>
-      <button class="call-btn-circle btn-speaker hidden" id="btn-group-video">📷<small id="group-video-label">Cam</small></button>
-    </div>
-    <button class="btn-add-participant" id="btn-add-to-group">👥 Add</button>
   </div>
 
-  <!-- ===================== SELECT CONTACTS MODAL ===================== -->
-  <div class="modal-overlay hidden" id="contact-select-modal">
+  <!-- ── INCOMING CALL OVERLAY ── -->
+  <div id="incoming-call-overlay" class="overlay" style="display:none">
+    <div class="incoming-card">
+      <div class="ghost-anim">👻</div>
+      <div id="incoming-caller-name" class="incoming-name">Unknown</div>
+      <div id="incoming-call-type" class="incoming-type">Audio Call</div>
+      <div class="incoming-btns">
+        <button id="btn-accept-call" class="call-btn accept-btn">✅ Accept</button>
+        <button id="btn-decline-call" class="call-btn end-call-btn">❌ Decline</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ADD CONTACT MODAL ── -->
+  <div id="add-contact-modal" class="overlay" style="display:none">
     <div class="modal-card">
-      <div class="modal-header">
-        <span id="modal-title">Select Contacts</span>
-        <button class="modal-close" id="btn-close-modal">✕</button>
-      </div>
-      <div class="modal-body" id="modal-contacts-list"></div>
-      <div class="modal-footer">
-        <button class="btn-primary" id="btn-modal-confirm">Call Selected</button>
+      <h3>Add Contact</h3>
+      <input type="text" id="inp-contact-id" placeholder="Enter Phantom ID (e.g. A9M22C123)"/>
+      <div id="contact-lookup-result" class="lookup-result"></div>
+      <div class="modal-btns">
+        <button id="btn-lookup-contact" class="btn-primary">Search</button>
+        <button id="btn-cancel-add"     class="btn-outline">Cancel</button>
       </div>
     </div>
   </div>
 
-  <!-- TOAST -->
-  <div class="toast" id="toast"></div>
-  <audio id="remote-audio" autoplay playsinline></audio>
+  <!-- ── TOAST ── -->
+  <div id="toast" class="toast"></div>
+
   <audio id="ringtone" loop>
-    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YWoGAACBhYqFjIqHhIKEiI+Vl5SNg3dwaGptcnl/h4qIhoSCg4mQlZiTiX5yaWJjaW95gYqLiYeDgYSMkZaYkoV6b2ZgYWdrdn+IjIqHhIKFjZKYmpSJfnJpYmFka3Z/iI2LiISDhY2SmJqTiH1xaGJhZGt2f4iNi4iEg4WNkpiakoZ8cGhiYWRrdoCI" type="audio/wav">
+    <source src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAA..." type="audio/wav"/>
   </audio>
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
