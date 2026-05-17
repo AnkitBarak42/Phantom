@@ -41,6 +41,10 @@ const rooms           = new Map();
 const adminSessions   = new Set();
 // adminSockets: Set of socketIds with active admin session
 const adminSockets    = new Set();
+// knownUsers: uniqueId -> { name } — all approved users (RAM, resets on restart)
+const knownUsers      = new Map();
+// mobileToId: mobile -> uniqueId — permanent ID per mobile number
+const mobileToId      = new Map();
 
 // ============================================================
 //  HELPERS
@@ -161,6 +165,7 @@ io.on('connection', (socket) => {
       const uniqueId = typeof data?.uniqueId === 'string' ? data.uniqueId.trim() : null;
       const name     = typeof data?.name     === 'string' ? data.name.trim()     : null;
       if (!uniqueId || !name) return;
+      knownUsers.set(uniqueId, { name });
       connectUser(socket, uniqueId, name);
       socket.emit('reconnected', { success: true, uniqueId, name });
       console.log(`[RECONNECT] ${name} (${uniqueId})`);
@@ -209,7 +214,13 @@ io.on('connection', (socket) => {
       const req = pendingRequests.get(requestId);
       if (!req) { socket.emit('admin-error', { error: 'Request not found.' }); return; }
 
-      const uniqueId = generateUniqueId(req.name, req.mobile, req.gender, req.age, req.address);
+      // Reuse existing ID if same mobile was approved before
+      let uniqueId = mobileToId.get(req.mobile);
+      if (!uniqueId) {
+        uniqueId = generateUniqueId(req.name, req.mobile, req.gender, req.age, req.address);
+        mobileToId.set(req.mobile, uniqueId);
+      }
+      knownUsers.set(uniqueId, { name: req.name }); // store so offline search works
 
       // Notify the waiting user
       io.to(req.socketId).emit('request-approved', {
@@ -276,11 +287,9 @@ io.on('connection', (socket) => {
     try {
       const uniqueId = typeof data?.uniqueId === 'string' ? data.uniqueId.trim() : null;
       if (!uniqueId) return;
-      socket.emit('user-status', {
-        uniqueId,
-        isOnline: activeUsers.has(uniqueId),
-        name: activeUsers.get(uniqueId)?.name || null,
-      });
+      const isOnline = activeUsers.has(uniqueId);
+      const name     = activeUsers.get(uniqueId)?.name || knownUsers.get(uniqueId)?.name || null;
+      socket.emit('user-status', { uniqueId, isOnline, name });
     } catch(e) { console.error('check-user error:', e); }
   });
 
