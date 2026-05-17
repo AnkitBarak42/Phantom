@@ -93,6 +93,14 @@ document.querySelectorAll('.tab').forEach(tab => {
   });
 });
 
+$('btn-clear-approved').addEventListener('click', () => {
+  if (!confirm('Clear all approved user data from this device?')) return;
+  approvedUsers = {};
+  saveApproved();
+  renderApproved();
+  showToast('Approved data cleared.');
+});
+
 $('btn-logout').addEventListener('click', () => {
   if (!confirm('Logout from admin panel?')) return;
   clearToken();
@@ -112,12 +120,23 @@ socket.on('new-request', (request) => {
   pendingRequests[request.requestId] = request;
   renderPending();
   showToast(`📩 New request from ${request.name}`);
-  // Vibrate if supported
   if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+});
+
+socket.on('remove-request', ({ requestId }) => {
+  delete pendingRequests[requestId];
+  renderPending();
 });
 
 socket.on('request-processed', ({ requestId, uniqueId, action, userDetails }) => {
   if (action === 'approved' && uniqueId && userDetails) {
+    // Remove any existing approved user with the same mobile number
+    for (const uid of Object.keys(approvedUsers)) {
+      if (approvedUsers[uid].mobile === userDetails.mobile) {
+        delete approvedUsers[uid];
+        console.log(`[DEDUP] Removed old approved entry for mobile ${userDetails.mobile}`);
+      }
+    }
     approvedUsers[uniqueId] = {
       uniqueId,
       name:       userDetails.name,

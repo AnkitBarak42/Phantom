@@ -3,7 +3,7 @@
   "appName": "Phantom",
   "webDir": "client",
   "server": {
-    "url": "https://phantom-d603.onrender.com",
+    "url": "https://YOUR-RENDER-URL.onrender.com",
     "cleartext": false
   },
   "android": {

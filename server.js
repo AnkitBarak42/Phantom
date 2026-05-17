@@ -115,6 +115,15 @@ io.on('connection', (socket) => {
         socket.emit('request-error', { error: 'Enter a valid age (5–120).' }); return;
       }
 
+      // Remove any existing pending request from same mobile number
+      for (const [existingId, existingReq] of pendingRequests.entries()) {
+        if (existingReq.mobile === mobile) {
+          pendingRequests.delete(existingId);
+          notifyAdmins('remove-request', { requestId: existingId });
+          console.log(`[DEDUP] Removed old pending request ${existingId} for mobile ${mobile}`);
+        }
+      }
+
       const requestId = generateRequestId();
       const request   = {
         requestId, name, mobile, gender,

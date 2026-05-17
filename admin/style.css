@@ -83,6 +83,8 @@ html, body { height: 100%; font-family: 'Segoe UI', sans-serif; background: var(
 .modal-card input { padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; outline: none; }
 .modal-btns { display: flex; gap: 10px; }
 
-/* ── TOAST ── */
+.clear-bar { padding: 10px 12px; display: flex; justify-content: flex-end; }
+.btn-clear  { background: var(--red-light); color: var(--red); border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.btn-clear:hover { background: #FFCDD2; }
 .toast { position: fixed; bottom: calc(var(--safe-bot) + 24px); left: 50%; transform: translateX(-50%) translateY(20px); background: #323232; color: var(--white); padding: 10px 20px; border-radius: 24px; font-size: 13px; opacity: 0; transition: all .3s; pointer-events: none; white-space: nowrap; z-index: 200; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
