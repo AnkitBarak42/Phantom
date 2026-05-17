@@ -54,20 +54,28 @@ function clearUser() {
 // ── BOOT ─────────────────────────────────────────────────────
 loadSaved();
 
+// Show correct screen immediately on load
 if (myUser) {
-  // Already approved — reconnect
-  socket.emit('user-reconnect', { uniqueId: myUser.uniqueId, name: myUser.name });
   initMainScreen();
 } else {
   const pending = localStorage.getItem('phantom_pending');
   if (pending) {
     pendingReqId = JSON.parse(pending).requestId;
-    socket.emit('rejoin-request', { requestId: pendingReqId });
     showScreen('screen-waiting');
   } else {
     showScreen('screen-login');
   }
 }
+
+// Re-register with server on EVERY connect and reconnect
+// This handles: first load, page refresh, network drop recovery
+socket.on('connect', () => {
+  if (myUser) {
+    socket.emit('user-reconnect', { uniqueId: myUser.uniqueId, name: myUser.name });
+  } else if (pendingReqId) {
+    socket.emit('rejoin-request', { requestId: pendingReqId });
+  }
+});
 
 // ── LOGIN FORM ────────────────────────────────────────────────
 $('btn-request').addEventListener('click', () => {
@@ -144,6 +152,8 @@ socket.on('request-approved', (data) => {
   saveUser();
   localStorage.removeItem('phantom_pending');
   pendingReqId = null;
+  // Register with server so messages/calls work immediately
+  socket.emit('user-reconnect', { uniqueId: myUser.uniqueId, name: myUser.name });
   showToast('🎉 Request approved! Welcome to Phantom.');
   initMainScreen();
 });
@@ -156,7 +166,8 @@ socket.on('request-rejected', ({ reason }) => {
 });
 
 socket.on('reconnected', () => {
-  initMainScreen();
+  // User re-registered with server successfully
+  console.log('[RECONNECTED] Active on server');
 });
 
 socket.on('force-logged-out', () => {
