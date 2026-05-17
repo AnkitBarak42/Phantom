@@ -3,7 +3,7 @@
   "appName": "Phantom Admin",
   "webDir": "admin",
   "server": {
-    "url": "https://YOUR-RENDER-URL.onrender.com/admin",
+    "url": "https://phantom-d603.onrender.com/admin",
     "cleartext": false
   },
   "android": {
